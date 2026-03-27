@@ -1,0 +1,3076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Stream Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --card: #16181c;
+    --card-hover: #1e2128;
+    --border: #2a2d35;
+    --accent: #fe2c55;
+    --accent2: #25f4ee;
+    --text: #e8eaf0;
+    --muted: #6b7080;
+    --tag-bg: #1e2128;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    width: 42px;
+    height: 42px;
+    background: var(--accent);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: white;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    color: var(--text);
+  }
+
+  header p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .filter-btn {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+
+  .chat-dropdown {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 28px 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    font-weight: 500;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg fill='%23e0e0e0' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 18px;
+    transition: all 0.15s;
+  }
+
+  .chat-dropdown:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .chat-dropdown option {
+    background: var(--card-bg);
+    color: var(--text);
+    padding: 6px;
+  }
+
+  .search-wrap {
+    margin-bottom: 20px;
+    position: relative;
+  }
+
+  .search-wrap input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px 10px 40px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .search-wrap input:focus { border-color: var(--accent2); }
+  .search-wrap input::placeholder { color: var(--muted); }
+
+  .search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .card:hover {
+    background: var(--card-hover);
+    border-color: var(--accent2);
+    transform: translateY(-1px);
+  }
+
+  .card.copied {
+    border-color: var(--accent2);
+    background: #131e1e;
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .tag-safety { background: #2a1215; color: #ff6b7a; }
+  .tag-chat { background: #12221e; color: #25f4ee; }
+  .tag-rules { background: #1a1a2e; color: #8b9cf4; }
+  .tag-info { background: #1e1a12; color: #f4c542; }
+  .tag-general { background: #1a1215; color: #fe2c55; }
+  .tag-submit { background: #1a1a12; color: #ffd166; }
+  .tag-weatherwise { background: #12201a; color: #06d6a0; }
+  .tag-yallcall { background: #1a1228; color: #b388ff; }
+  .tag-tempest { background: #12181e; color: #64b5f6; }
+  .tag-coverage { background: #1a1520; color: #ce93d8; }
+  .tag-engagement { background: #1e1812; color: #ffb74d; }
+
+  .card-text {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .copy-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+    transition: color 0.15s;
+    margin-top: 4px;
+    user-select: none;
+  }
+
+  .card:hover .copy-btn { color: var(--accent2); }
+  .card.copied .copy-btn { color: var(--accent2); }
+
+  .copy-icon { font-size: 13px; }
+
+  .count {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .no-results {
+    grid-column: 1/-1;
+    text-align: center;
+    color: var(--muted);
+    padding: 60px 0;
+    font-size: 14px;
+  }
+
+  #wx-panel { display: none; }
+
+  .wx-search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .wx-search-row input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .wx-search-row input:focus { border-color: var(--accent2); }
+  .wx-search-row input::placeholder { color: var(--muted); }
+
+  .wx-search-row button {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 10px 22px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .wx-status { color: var(--muted); padding: 40px 0; text-align: center; font-size: 14px; }
+  .wx-error { color: #ff6b7a; padding: 20px 0; font-size: 13px; }
+
+  .wx-location {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: var(--accent2);
+    margin-bottom: 16px;
+  }
+
+  .wx-periods {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .wx-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .wx-period-name {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+  }
+
+  .wx-temp {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 30px;
+    color: var(--text);
+    line-height: 1;
+    margin: 2px 0;
+  }
+
+  .wx-short { font-size: 13px; color: var(--text); }
+  .wx-wind { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+
+  .wx-copy-btn {
+    background: var(--tag-bg);
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: auto;
+    transition: border-color 0.15s;
+  }
+
+  .wx-copy-btn:hover { border-color: var(--accent2); }
+
+  .wx-summary {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .wx-summary-weather {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .wx-summary-risk {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.55;
+  }
+
+  .wx-summary-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .wx-summary-len {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .wx-summary-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .wx-risk-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 3px 7px;
+    border-radius: 4px;
+    margin-top: 6px;
+  }
+
+  .wx-no-risk {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  #warnings-panel { display: none; }
+
+  .alerts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+  }
+
+  .alert-card {
+    background: var(--card);
+    border: 1px solid;
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .alert-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .alert-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+  }
+
+  .alert-new {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    background: var(--accent);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .alert-area {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .alert-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+
+  .alert-copy-text {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-style: italic;
+    flex: 1;
+  }
+
+  .warnings-status {
+    color: var(--muted);
+    padding: 40px 0;
+    text-align: center;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+
+  #wis-panel { display: none; } /* unused, WIS is now inside warnings-panel */
+
+  .wis-wrap {
+    max-width: 360px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  }
+
+  .wis-card {
+    background: rgba(0,0,0,0.95);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-radius: 22px;
+    padding: 16px 16px 14px;
+    position: relative;
+    overflow: hidden;
+    color: white;
+  }
+
+  .wis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2px;
+  }
+
+  .wis-title-top { font-size: 9px; font-weight: 800; letter-spacing: 4px; }
+  .wis-title-sub { font-size: 9px; font-weight: 600; letter-spacing: 3px; color: rgba(255,255,255,0.5); }
+
+  .wis-mode-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+
+  .wis-mode-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+
+  .wis-gauge-wrap {
+    display: flex;
+    justify-content: center;
+  }
+
+  .wis-trend-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 9px 20px;
+    border: 1px solid rgba(255,255,255,0.07);
+    margin-bottom: 8px;
+  }
+
+  .wis-trend-val { font-size: 21px; font-weight: 700; color: rgba(255,255,255,0.85); }
+  .wis-trend-label { font-size: 7.5px; color: rgba(255,255,255,0.45); letter-spacing: 1.5px; margin-top: 2px; }
+  .wis-trend-arrow { font-size: 28px; font-weight: 900; line-height: 1; }
+  .wis-trend-arrow-label { font-size: 7px; color: rgba(255,255,255,0.4); letter-spacing: 1px; margin-top: 2px; }
+
+  .wis-section {
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 9px 11px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 8px;
+  }
+
+  .wis-section-label {
+    font-size: 7.5px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+  }
+
+  .wis-reasoning {
+    font-size: 9.5px;
+    color: rgba(255,255,255,0.75);
+    line-height: 1.6;
+  }
+
+  .wis-threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 9px;
+  }
+
+  .wis-threshold-label {
+    font-size: 7.5px;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 1.5px;
+    white-space: nowrap;
+  }
+
+  .wis-threshold-track {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .wis-threshold-fill {
+    position: absolute;
+    left: 0; top: 0; height: 100%;
+    border-radius: 2px;
+  }
+
+  .wis-threshold-tick {
+    position: absolute;
+    right: 0; top: -4px;
+    width: 2px; height: 11px;
+    background: rgba(255,255,255,0.55);
+    border-radius: 1px;
+  }
+
+  .wis-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .wis-footer-text {
+    font-size: 7.5px;
+    color: rgba(255,255,255,0.7);
+    letter-spacing: 0.5px;
+  }
+
+  .wis-refresh-note {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 10px;
+  }
+
+  /* ─── Storm Chaser Log ─── */
+  .sc-top-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .sc-btn { font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; border: none; border-radius: 10px; padding: 12px 24px; cursor: pointer; transition: all 0.15s; }
+  .sc-btn-start { background: var(--accent); color: white; }
+  .sc-btn-start:hover { background: #e0224a; transform: translateY(-1px); }
+  .sc-btn-start.active-stream { background: #22c55e; color: #0d0d0f; }
+  .sc-btn-export { background: var(--tag-bg); color: var(--text); border: 1px solid var(--border); }
+  .sc-btn-export:hover { border-color: var(--accent2); color: var(--accent2); }
+  .sc-btn-clear { background: transparent; color: var(--muted); border: 1px solid var(--border); font-size: 12px; padding: 8px 16px; }
+  .sc-btn-clear:hover { border-color: var(--accent); color: var(--accent); }
+  .sc-stream-info { font-size: 14px; color: var(--accent2); font-weight: 600; margin-left: 8px; display: flex; align-items: center; gap: 8px; }
+  .sc-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; animation: scPulse 1.5s ease infinite; }
+  @keyframes scPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .sc-panels { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .sc-panels { grid-template-columns: 1fr; } }
+  .sc-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .sc-panel-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .sc-count { font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--accent2); font-weight: 600; }
+
+  .sc-search-wrap { position: relative; margin-bottom: 14px; }
+  .sc-search-wrap input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 14px 10px 36px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s; }
+  .sc-search-wrap input:focus { border-color: var(--accent2); }
+  .sc-search-wrap input::placeholder { color: var(--muted); }
+  .sc-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; }
+
+  .sc-chaser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); grid-auto-flow: column; gap: 8px; max-height: 60vh; overflow-y: auto; padding-right: 4px; }
+  .sc-chaser-grid::-webkit-scrollbar { width: 4px; }
+  .sc-chaser-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .sc-chaser-btn { background: var(--tag-bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sc-chaser-btn:hover { border-color: var(--accent2); background: var(--card-hover); transform: translateY(-1px); }
+  .sc-chaser-btn.logged { border-color: #22c55e; background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+  .sc-chaser-btn.logged::after { content: ' \2713'; font-weight: 700; }
+  .sc-chaser-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+
+  .sc-add-chaser-btn { background: transparent; border: 1px dashed var(--border); color: var(--muted); padding: 10px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+  .sc-add-chaser-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .sc-log-list { list-style: none; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .sc-log-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg); border-radius: 8px; font-size: 13px; animation: scSlideIn 0.2s ease; }
+  @keyframes scSlideIn { from { opacity: 0; transform: translateX(10px); } to { opacity: 1; transform: translateX(0); } }
+  .sc-log-item .name { font-weight: 600; }
+  .sc-log-item .time { color: var(--muted); font-size: 11px; }
+  .sc-log-item .remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 0 4px; transition: color 0.15s; }
+  .sc-log-item .remove:hover { color: var(--accent); }
+  .sc-empty-log { color: var(--muted); font-size: 13px; text-align: center; padding: 40px 0; }
+
+  .sc-toast { position: fixed; bottom: 24px; right: 24px; background: #22c55e; color: #0d0d0f; padding: 12px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; opacity: 0; transform: translateY(10px); transition: all 0.25s; pointer-events: none; z-index: 999; }
+  .sc-toast.show { opacity: 1; transform: translateY(0); }
+
+  .sc-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; }
+  .sc-modal-overlay.open { display: flex; }
+  .sc-modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 360px; max-width: 90vw; }
+  .sc-modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1.5px; margin-bottom: 16px; }
+  .sc-modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 12px 14px; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; margin-bottom: 14px; }
+  .sc-modal input:focus { border-color: var(--accent2); }
+  .sc-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .sc-modal-actions .sc-btn { padding: 10px 20px; font-size: 13px; }
+  .sc-btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .sc-btn-add { background: var(--accent2); color: #0d0d0f; }
+  .sc-btn-add:hover { background: #1dd6cc; }
+
+  .sc-history-section { margin-top: 24px; }
+  .sc-history-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding: 14px 0; border-top: 1px solid var(--border); }
+  .sc-history-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.5px; color: var(--muted); }
+  .sc-history-toggle { color: var(--muted); font-size: 18px; transition: transform 0.2s; }
+  .sc-history-body { display: none; }
+  .sc-history-body.open { display: block; }
+  .sc-history-date { font-weight: 600; font-size: 14px; color: var(--accent2); margin-top: 14px; margin-bottom: 8px; }
+  .sc-history-names { color: var(--text); font-size: 13px; line-height: 1.8; padding-left: 12px; border-left: 2px solid var(--border); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" style="background:transparent;padding:0;">
+    <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Outer aluminum frame -->
+      <rect x="2" y="3" width="38" height="27" rx="3" fill="url(#frameGrad)" stroke="#aeaeb2" stroke-width="0.75"/>
+      <!-- Screen bezel inner shadow -->
+      <rect x="3.5" y="4.5" width="35" height="24" rx="2" fill="#1a1a1a"/>
+      <!-- Screen -->
+      <rect x="4.5" y="5.5" width="33" height="22" rx="1.5" fill="url(#screenGrad)"/>
+      <!-- Chin (aluminum) -->
+      <rect x="2" y="28.5" width="38" height="1.5" rx="0.75" fill="url(#frameGrad)"/>
+      <!-- Stand neck — slim, slightly tapered -->
+      <path d="M18.5 30.5 L19.5 37 L22.5 37 L23.5 30.5 Z" fill="url(#standGrad)"/>
+      <!-- Stand base — wide, thin, Apple-style -->
+      <rect x="9" y="37" width="24" height="2" rx="1" fill="url(#standGrad)"/>
+      <defs>
+        <linearGradient id="frameGrad" x1="2" y1="3" x2="40" y2="30" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#e5e5ea"/>
+          <stop offset="100%" stop-color="#aeaeb2"/>
+        </linearGradient>
+        <linearGradient id="standGrad" x1="0" y1="0" x2="1" y2="0" gradientUnits="objectBoundingBox">
+          <stop offset="0%" stop-color="#c7c7cc"/>
+          <stop offset="50%" stop-color="#e5e5ea"/>
+          <stop offset="100%" stop-color="#c7c7cc"/>
+        </linearGradient>
+        <linearGradient id="screenGrad" x1="4.5" y1="5.5" x2="37.5" y2="27.5" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stop-color="#fe2c55"/>
+          <stop offset="100%" stop-color="#25f4ee"/>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+  <div>
+    <h1>Live Stream Dashboard</h1>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+    <span id="my-weather-icon" style="display:none;font-size:42px;line-height:1;"></span>
+    <div style="text-align:right;">
+      <div id="local-clock" style="font-size:16px;font-weight:500;color:var(--text);white-space:nowrap;"></div>
+      <div id="my-weather" style="font-size:14px;color:var(--muted);margin-top:3px;"></div>
+    </div>
+  </div>
+</header>
+
+<div id="warning-counter" style="display:none;margin-bottom:16px;"></div>
+
+<div class="search-wrap" id="msg-search">
+  <span class="search-icon">🔍</span>
+  <input type="text" id="search" placeholder="Search messages..." oninput="filterCards()">
+</div>
+
+<div class="filter-bar" id="filters">
+  <button class="filter-btn" onclick="setFilter('warnings', this)">🚨 Live Monitor</button>
+  <button class="filter-btn" onclick="setFilter('chasers', this)">🚗 Chasers</button>
+  <button class="filter-btn" onclick="setFilter('weather', this)">🌤 Weather Lookup</button>
+  <button class="filter-btn" onclick="setFilter('spc', this)">⚡ SPC Outlook</button>
+  <select id="chat-category" class="chat-dropdown" onchange="setChatFilter(this.value)">
+    <option value="all">💬 Chat Messages ▾</option>
+    <option value="all">── All</option>
+    <option value="safety">🌪️ Safety</option>
+    <option value="chat">💬 Chat Rules</option>
+    <option value="info">ℹ️ Info</option>
+    <option value="rules">📋 Stream Rules</option>
+    <option value="general">⚡ General</option>
+    <option value="submit">📸 Submissions</option>
+    <option value="weatherwise">📍 WeatherWise</option>
+    <option value="yallcall">📞 Y'all Call</option>
+    <option value="tempest">🌡️ Tempest</option>
+    <option value="coverage">📡 Coverage</option>
+    <option value="engagement">🎙️ Engagement</option>
+  </select>
+</div>
+
+<div class="count" id="count"></div>
+
+<div class="grid" id="grid"></div>
+
+<div id="warnings-panel" style="display:none;">
+  <div style="display:flex;gap:20px;align-items:flex-start;">
+
+    <!-- Left sidebar: WIS + Weather Lookup + YouTube link -->
+    <div style="flex-shrink:0;width:370px;display:flex;flex-direction:column;gap:16px;position:sticky;top:0;">
+
+      <div id="wis-results"><div class="warnings-status">Loading WIS...</div></div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">📺 YouTube Live Link</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="yt-link" placeholder="Paste your live link for social copy..." style="flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:12px;outline:none;" oninput="localStorage.setItem('yt-link', this.value); updateYtThumbnail();">
+          <button onclick="document.getElementById('yt-link').value='';localStorage.removeItem('yt-link');updateYtThumbnail();" style="background:var(--tag-bg);border:1px solid var(--border);color:var(--muted);padding:7px 10px;border-radius:7px;font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;">Clear</button>
+        </div>
+        <div id="yt-thumbnail" style="display:none;margin-top:10px;"></div>
+      </div>
+
+      <div>
+        <div style="font-size:10px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">Weather Lookup</div>
+        <div class="wx-search-row" style="margin-bottom:0;">
+          <input type="text" id="monitor-wx-input" placeholder="City, State  (e.g. Tulsa OK)" onkeydown="if(event.key==='Enter')lookupMonitorWeather()">
+          <button onclick="lookupMonitorWeather()">Search</button>
+        </div>
+        <div id="monitor-wx-results"><div class="wx-status" style="padding:16px 0 4px;">Enter a city above for the NWS outlook.</div></div>
+      </div>
+
+    </div>
+
+    <!-- Right: Warnings, scrollable -->
+    <div style="flex:1;min-width:0;max-height:calc(100vh - 140px);overflow-y:auto;padding-right:6px;">
+      <div id="warnings-results"><div class="warnings-status">Loading warnings...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="wx-panel">
+  <div class="wx-search-row">
+    <input type="text" id="wx-input" placeholder="City, State or region  (e.g. Tulsa OK  or  Southeast Missouri)" onkeydown="if(event.key==='Enter')lookupWeather()">
+    <button onclick="lookupWeather()">Search</button>
+  </div>
+  <div id="wx-results"><div class="wx-status">Enter a city and state above to get the NWS 3-day outlook.</div></div>
+</div>
+
+<div id="spc-panel" style="display:none;">
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+    <div id="spc-day-1"></div>
+    <div id="spc-day-2"></div>
+    <div id="spc-day-3"></div>
+  </div>
+</div>
+
+<div id="chasers-panel" style="display:none;">
+  <div class="sc-top-bar">
+    <button class="sc-btn sc-btn-start" id="scStartBtn" onclick="scToggleStream()">START STREAM</button>
+    <div class="sc-stream-info" id="scStreamInfo" style="display:none">
+      <span class="sc-dot"></span>
+      <span id="scStreamDate"></span>
+      <span id="scStreamTimer" style="font-family:monospace;font-size:15px;color:var(--text);background:var(--tag-bg);padding:4px 10px;border-radius:6px;letter-spacing:1px;">0:00:00</span>
+    </div>
+    <div style="flex:1"></div>
+    <button class="sc-btn sc-btn-export" onclick="scExportForSheet()">EXPORT FOR SHEET</button>
+    <button class="sc-btn sc-btn-export" onclick="scExportAll()">EXPORT ALL</button>
+    <button class="sc-btn sc-btn-clear" onclick="scConfirmClear()">CLEAR HISTORY</button>
+  </div>
+
+  <div class="sc-panels">
+    <div class="sc-panel">
+      <div class="sc-panel-title">CHASERS <span class="sc-count" id="scChaserCount"></span></div>
+      <div class="sc-search-wrap">
+        <span class="sc-search-icon">&#128269;</span>
+        <input type="text" id="scChaserSearch" placeholder="Search chasers..." oninput="scRenderChasers()">
+      </div>
+      <div class="sc-chaser-grid" id="scChaserGrid"></div>
+    </div>
+    <div class="sc-panel">
+      <div class="sc-panel-title">LIVE LOG <span class="sc-count" id="scLogCount">0 chasers</span></div>
+      <ul class="sc-log-list" id="scLogList">
+        <li class="sc-empty-log">Start a stream and tap chasers to log them</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="sc-history-section">
+    <div class="sc-history-header" onclick="scToggleHistory()">
+      <h2>PAST STREAMS</h2>
+      <span class="sc-history-toggle" id="scHistToggle">&#9660;</span>
+    </div>
+    <div class="sc-history-body" id="scHistBody"></div>
+  </div>
+
+  <div class="sc-toast" id="scToast"></div>
+
+  <div class="sc-modal-overlay" id="scAddModal">
+    <div class="sc-modal">
+      <h3>ADD NEW CHASER</h3>
+      <input type="text" id="scNewChaserName" placeholder="Chaser name..." onkeydown="if(event.key==='Enter')scAddNewChaser()">
+      <div class="sc-modal-actions">
+        <button class="sc-btn sc-btn-cancel" onclick="scCloseModal()">Cancel</button>
+        <button class="sc-btn sc-btn-add" onclick="scAddNewChaser()">Add</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+<script>
+const messages = [
+  { tag: "general", label: "General", text: "SHARE this live! Someone you know may need this info now. Hit the arrow to share it!" },
+  { tag: "general", label: "General", text: "Tap the screen to like,it's free and helps more people see this live!" },
+  { tag: "general", label: "General", text: "Ryan is taking a short break and will be back soon! Stay tuned" },
+  { tag: "info", label: "Info", text: "Ryan focuses on areas of most concern. For your area, check weather.gov or local sources" },
+  { tag: "safety", label: "Safety", text: "🌪️ TORNADO SHELTER: Go to a basement OR lowest floor room with no windows. Get low!" },
+  { tag: "safety", label: "Safety", text: "⚠️ TORNADO WARNING = tornado sighted in person or on radar. SEEK SHELTER NOW. Do not wait!" },
+  { tag: "safety", label: "Safety", text: "📍 TORNADO WATCH = tornado conditions possible. Issued in advance. Stay alert and be ready!" },
+  { tag: "safety", label: "Safety", text: "🚗 Don't shelter under an overpass! It blocks traffic and funnels wind & debris into you." },
+  { tag: "safety", label: "Safety", text: "🌪️ PDS = Particularly Dangerous Situation. NWS uses this for EXTREME risk. Take it seriously!" },
+  { tag: "safety", label: "Safety", text: "SLC = Scary Looking Cloud. Looks ominous but not always dangerous. Ryan will let you know! 😊" },
+  { tag: "safety", label: "Safety", text: "🗺️ Map Colors: RED = Thunderstorm Warning. PURPLE = Tornado Warning." },
+  { tag: "safety", label: "Safety", text: "🔴 ALL active tornado warnings shown at the bottom of the screen, listed by COUNTY/State." },
+  { tag: "safety", label: "Safety", text: "⚠️ Some NOAA Weather Radio transmitters may be down. Have multiple ways to receive warnings!" },
+  { tag: "safety", label: "Safety", text: "Please don't rate tornadoes. They aren't officially rated until after the damage survey 🙏" },
+  { tag: "safety", label: "Safety", text: "🌊 FLOOD SAFETY: Never drive flooded roads. Turn around, don't drown. Even shallow water is deadly!" },
+  { tag: "safety", label: "Safety", text: "If you don't have a basement, go to the most interior room on the lowest floor away from windows." },
+  { tag: "safety", label: "Safety", text: "If you don't have a basement, a bathroom, closet, or interior hallway on the lowest floor works." },
+  { tag: "safety", label: "Safety", text: "If you don't have a basement, look for rooms with no exterior walls like bathrooms or closets." },
+  { tag: "safety", label: "Safety", text: "Once you're in your safe spot, cover yourself with a mattress or blankets to block debris." },
+  { tag: "safety", label: "Safety", text: "Once sheltered, get as low as you can and cover your head. Stay away from windows." },
+  { tag: "safety", label: "Safety", text: "If you live in a mobile home, get out before the storm and find a nearby sturdy building." },
+  { tag: "safety", label: "Safety", text: "If you're in your car, don't try to outrun a tornado. Find a sturdy building or a low ditch." },
+  { tag: "safety", label: "Safety", text: "If you're caught outside with no shelter, lie flat in a low ditch and cover your head." },
+  { tag: "chat", label: "Chat", text: "Chats are flying too fast for Ryan to read! Drop your location and he'll try to get to it" },
+  { tag: "chat", label: "Chat", text: "REMINDER: You can block anyone in chat. It removes their messages from YOUR screen" },
+  { tag: "chat", label: "Chat", text: "Real people are in this chat. Stay respectful,you can block anyone you don't want to see" },
+  { tag: "chat", label: "Chat", text: "Messages that are mostly emoji will be removed. Keep it readable please!" },
+  { tag: "chat", label: "Chat", text: "English only please! We appreciate ALL viewers but can't read messages we don't understand" },
+  { tag: "chat", label: "Chat", text: "We love the pronunciation help! Just please stop posting it after a few times,thanks!" },
+  { tag: "chat", label: "Chat", text: "Chat is moving fast but I'm relaying messages to Ryan,he'll get to as many as he can!" },
+  { tag: "chat", label: "Chat", text: "Ryan's locked in on radar but I'm passing your messages along,hang tight!" },
+  { tag: "chat", label: "Chat", text: "I'm watching chat and sending Ryan your questions,he'll answer when he can between updates!" },
+  { tag: "chat", label: "Chat", text: "Don't worry if Ryan doesn't respond right away,I'm keeping him in the loop!" },
+  { tag: "chat", label: "Chat", text: "I'm relaying chat to Ryan so keep your questions coming,he sees more than it looks like!" },
+  { tag: "chat", label: "Chat", text: "Keep chat kind! Negative comments toward Ryan or other viewers will be removed" },
+  { tag: "chat", label: "Chat", text: "This is a welcoming community. Let's keep it that way! Disrespectful messages will be removed" },
+  { tag: "chat", label: "Chat", text: "Friendly reminder to be kind in chat. We're all here for the weather,not the drama" },
+  { tag: "chat", label: "Chat", text: "Please don't argue in chat. If you disagree,just scroll past. Keeps things positive" },
+  { tag: "chat", label: "Chat", text: "Hateful or mean comments will be removed without warning. Keep it respectful!" },
+  { tag: "chat", label: "Chat", text: "Remember there are real people behind every username in chat. Be kind to each other!" },
+  { tag: "rules", label: "Stream Rules", text: "RULES: Family friendly · No CAPSLOCK · No drama/politics · English only · Stay safe!" },
+  { tag: "rules", label: "Stream Rules", text: "No negative comments about storm chasers or other creators. Keep it positive" },
+  { tag: "rules", label: "Stream Rules", text: "PLEASE don't follow storm chasers on the road. It makes them uncomfortable and can be dangerous!" },
+  { tag: "rules", label: "Stream Rules", text: "We can't show storm chaser footage without a prior arrangement to do so." },
+  { tag: "info", label: "Info", text: "Ryan's radar software is custom-built and not available to the public yet!" },
+  { tag: "info", label: "Info", text: "Ryan uses lots of radar apps,WeatherWise let him design a custom version just for this stream." },
+  { tag: "info", label: "Info", text: "Ryan can't respond to every gift,there are too many! But we truly appreciate every single one" },
+  { tag: "info", label: "Info", text: "Gifted subs are always chosen at random. There's no way to pick specific people" },
+  { tag: "general", label: "General", text: "If this live is useful to you, please SHARE it! Someone out there needs this info right now" },
+  { tag: "general", label: "General", text: "Tech issues at the moment,please be patient! Try closing and reopening the live if it lags." },
+
+  // Photo / Video Submissions
+  { tag: "submit", label: "Submissions", text: "Got storm photos or videos? Submit via the link in Ryan's bio,might be shown live!" },
+  { tag: "submit", label: "Submissions", text: "Seeing hail, wind, or lightning? Share your photos! Submission link is in Ryan's bio!" },
+  { tag: "submit", label: "Submissions", text: "Your storm report could help others stay informed. Submit via the link in Ryan's bio!" },
+  { tag: "submit", label: "Submissions", text: "Want your weather photo shown on stream? Check the link in Ryan's bio to submit!" },
+  { tag: "submit", label: "Submissions", text: "Please include your location when you submit so we can place it on the map. Link in bio!" },
+
+  // WeatherWise
+  { tag: "weatherwise", label: "WeatherWise", text: "Want Ryan to see where you are? Download WeatherWise,search in the App Store or Google Play!" },
+  { tag: "weatherwise", label: "WeatherWise", text: "Share your location and help track storms! Search WeatherWise in your app store." },
+  { tag: "weatherwise", label: "WeatherWise", text: "Join the community reporting storms live,search WeatherWise in the App Store or Google Play!" },
+  { tag: "weatherwise", label: "WeatherWise", text: "Ryan can see where you're watching through WeatherWise. Download and share your location!" },
+  { tag: "weatherwise", label: "WeatherWise", text: "WeatherWise is free for the basics,search it in the App Store or Google Play!" },
+
+  // Y'all Call
+  { tag: "yallcall", label: "Y'all Call", text: "Want Ryan to call you if you're under a warning? Search Y'all Call in your app store!" },
+  { tag: "yallcall", label: "Y'all Call", text: "Y'all Call calls your phone for tornado and storm warnings. Search Y'all Call in your app store!" },
+  { tag: "yallcall", label: "Y'all Call", text: "You can try a demo call right in the app,search Y'all Call in the App Store or Google Play!" },
+  { tag: "yallcall", label: "Y'all Call", text: "Redundant alerts save lives. Y'all Call is one more warning method. Search in your app store!" },
+  { tag: "yallcall", label: "Y'all Call", text: "The goal is redundancy: have multiple ways to receive warnings. Y'all Call is one of them!" },
+
+  // Tempest
+  { tag: "tempest", label: "Tempest", text: "If you have a Tempest weather station, make sure it's online! The data helps track storms live." },
+  { tag: "tempest", label: "Tempest", text: "Ryan can see real-time storm environment data from Tempest stations." },
+  { tag: "tempest", label: "Tempest", text: "Tempest stations help show what's happening around storms in real time." },
+  { tag: "tempest", label: "Tempest", text: "More stations = better coverage. If yours is online, it helps!" },
+
+  // Coverage
+  { tag: "coverage", label: "Coverage", text: "Live coverage is going all day with radar + chasers on the ground." },
+  { tag: "coverage", label: "Coverage", text: "Multiple storm chasers are live across the region right now." },
+  { tag: "coverage", label: "Coverage", text: "Stay here for live radar updates and safety info." },
+  { tag: "coverage", label: "Coverage", text: "If storms are near you, stay tuned. We're watching them closely." },
+  { tag: "coverage", label: "Coverage", text: "Keep reports coming in if you can do so safely." },
+
+  // Engagement
+  { tag: "engagement", label: "Engagement", text: "Where are you watching from tonight?" },
+  { tag: "engagement", label: "Engagement", text: "Anyone seeing hail or lightning yet?" },
+  { tag: "engagement", label: "Engagement", text: "Are storms hitting your area right now?" },
+  { tag: "engagement", label: "Engagement", text: "What's the weather like where you are?" },
+  { tag: "engagement", label: "Engagement", text: "Are you under a watch or warning?" },
+];
+
+let activeFilter = 'all';
+let warningsInterval = null;
+let wisInterval = null;
+let spcCountdownInterval = null;
+
+function setFilter(filter, btn) {
+  activeFilter = filter;
+  try { localStorage.setItem('lcc-active-tab', filter); } catch(e) {}
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // Reset dropdown highlight when switching to a tool tab
+  const dropdown = document.getElementById('chat-category');
+  const isToolTab = ['weather', 'warnings', 'spc', 'chasers'].includes(filter);
+  if (isToolTab) {
+    dropdown.style.background = 'var(--tag-bg)';
+    dropdown.style.borderColor = 'var(--border)';
+    dropdown.style.color = 'var(--muted)';
+  }
+
+  const isWx = filter === 'weather';
+  const isWarn = filter === 'warnings';
+  const isSpc = filter === 'spc';
+  const isChaser = filter === 'chasers';
+  const isMsg = !isWx && !isWarn && !isSpc && !isChaser;
+
+  document.getElementById('msg-search').style.display = isMsg ? '' : 'none';
+  document.getElementById('count').style.display = isMsg ? '' : 'none';
+  document.getElementById('grid').style.display = isMsg ? '' : 'none';
+  document.getElementById('wx-panel').style.display = isWx ? 'block' : 'none';
+  document.getElementById('warnings-panel').style.display = isWarn ? 'block' : 'none';
+  document.getElementById('spc-panel').style.display = isSpc ? 'block' : 'none';
+  document.getElementById('chasers-panel').style.display = isChaser ? 'block' : 'none';
+
+  // Reset body overflow for all tabs
+  document.body.style.overflow = '';
+
+  if (warningsInterval) { clearInterval(warningsInterval); warningsInterval = null; }
+  if (wisInterval) { clearInterval(wisInterval); wisInterval = null; }
+  if (spcCountdownInterval) { clearInterval(spcCountdownInterval); spcCountdownInterval = null; }
+
+  if (isWx) {
+    document.getElementById('wx-input').focus();
+  } else if (isWarn) {
+    loadWarnings();
+    loadWIS();
+    warningsInterval = setInterval(loadWarnings, 10000);
+    wisInterval = setInterval(loadWIS, 20000);
+  } else if (isSpc) {
+    loadSpcOutlook();
+  } else if (isChaser) {
+    scUpdateUI();
+  } else {
+    filterCards();
+  }
+}
+
+// Handle chat category dropdown selection
+function setChatFilter(value) {
+  activeFilter = value;
+  // Deactivate all tool tab buttons
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  // Highlight the dropdown to show it's the active selection
+  const dropdown = document.getElementById('chat-category');
+  dropdown.style.background = 'var(--accent)';
+  dropdown.style.borderColor = 'var(--accent)';
+  dropdown.style.color = 'white';
+
+  // Show message grid, hide tool panels
+  document.getElementById('msg-search').style.display = '';
+  document.getElementById('count').style.display = '';
+  document.getElementById('grid').style.display = '';
+  document.getElementById('wx-panel').style.display = 'none';
+  document.getElementById('warnings-panel').style.display = 'none';
+  document.getElementById('spc-panel').style.display = 'none';
+  document.getElementById('chasers-panel').style.display = 'none';
+
+  if (warningsInterval) { clearInterval(warningsInterval); warningsInterval = null; }
+  if (wisInterval) { clearInterval(wisInterval); wisInterval = null; }
+  if (spcCountdownInterval) { clearInterval(spcCountdownInterval); spcCountdownInterval = null; }
+
+  filterCards();
+}
+
+function filterCards() {
+  const query = document.getElementById('search').value.toLowerCase();
+  const grid = document.getElementById('grid');
+  const countEl = document.getElementById('count');
+  grid.innerHTML = '';
+
+  const filtered = messages.filter(m => {
+    const matchFilter = activeFilter === 'all' || m.tag === activeFilter;
+    const matchSearch = m.text.toLowerCase().includes(query) || m.label.toLowerCase().includes(query);
+    return matchFilter && matchSearch;
+  });
+
+  countEl.textContent = `${filtered.length} message${filtered.length !== 1 ? 's' : ''}`;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="no-results">No messages found. Try a different search or filter.</div>';
+    return;
+  }
+
+  filtered.forEach((m, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="card-text">${m.text}</div>
+        <span class="tag tag-${m.tag}">${m.label}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+        <div class="copy-btn"><span class="copy-icon">📋</span> Click to copy</div>
+        <span style="font-size:11px;color:${m.text.length > 85 ? '#f4c542' : 'var(--muted)'};">${m.text.length}/100</span>
+      </div>
+    `;
+    card.addEventListener('click', () => copyText(card, m.text));
+    grid.appendChild(card);
+  });
+}
+
+function copyText(card, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    card.classList.add('copied');
+    const btn = card.querySelector('.copy-btn');
+    btn.innerHTML = '<span class="copy-icon">✅</span> Copied!';
+    setTimeout(() => {
+      card.classList.remove('copied');
+      btn.innerHTML = '<span class="copy-icon">📋</span> Click to copy';
+    }, 2000);
+  });
+}
+
+const ALERT_STYLE = {
+  'Tornado Emergency':           { color: '#ff00ff', bg: '#2a002a', border: '#ff00ff', short: 'TORNADO EMERGENCY' },
+  'PDS Tornado Warning':         { color: '#ff44ff', bg: '#2a0020', border: '#ff44ff', short: 'PDS TORNADO WARNING' },
+  'Tornado Warning':             { color: '#ff4444', bg: '#2a0000', border: '#ff4444', short: 'TORNADO WARNING' },
+  'Tornado Watch':               { color: '#ffaa00', bg: '#2a1800', border: '#ffaa00', short: 'TORNADO WATCH' },
+  'Severe Thunderstorm Warning': { color: '#f6f67e', bg: '#2a2a00', border: '#f6f67e', short: 'SVR THUNDERSTORM' },
+  'Severe Thunderstorm Watch':   { color: '#e8c467', bg: '#2a2000', border: '#e8c467', short: 'SVR TSTM WATCH' },
+  'Flash Flood Emergency':       { color: '#66bb6a', bg: '#0a1f0a', border: '#66bb6a', short: 'FLASH FLOOD EMRG' },
+  'Flash Flood Warning':         { color: '#43a047', bg: '#081a08', border: '#43a047', short: 'FLASH FLOOD WARN' },
+};
+
+const ALERT_ORDER = ['Tornado Emergency','PDS Tornado Warning','Tornado Warning','Tornado Watch','Severe Thunderstorm Warning','Severe Thunderstorm Watch','Flash Flood Emergency','Flash Flood Warning'];
+
+function formatTime(isoStr) {
+  // NWS ISO strings include the local offset (e.g. "...T22:30:00-05:00")
+  // Read local time and offset directly — no browser timezone conversion
+  const m = isoStr.match(/T(\d{2}):(\d{2}):\d{2}([+-]\d{2}):\d{2}/);
+  if (!m) return new Date(isoStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+  const hr = parseInt(m[1]), min = m[2], offH = parseInt(m[3]);
+  const h12 = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+  const ampm = hr >= 12 ? 'PM' : 'AM';
+  const mo = parseInt(isoStr.slice(5, 7)), day = parseInt(isoStr.slice(8, 10));
+  // US DST: second Sunday of March through first Sunday of November
+  const dst = (mo > 3 && mo < 11) || (mo === 3 && day >= 8) || (mo === 11 && day < 7);
+  const tz = (dst
+    ? { '-4': 'EDT', '-5': 'CDT', '-6': 'MDT', '-7': 'PDT', '-8': 'AKDT' }
+    : { '-4': 'AST', '-5': 'EST', '-6': 'CST', '-7': 'MST', '-8': 'PST', '-9': 'AKST' }
+  )[offH] || `UTC${offH >= 0 ? '+' : ''}${offH}`;
+  return `${h12}:${min} ${ampm} ${tz}`;
+}
+
+function shortArea(areaDesc, maxLen = 40) {
+  const parts = areaDesc.split(';').map(s => s.trim());
+  let out = parts[0];
+  for (let i = 1; i < parts.length; i++) {
+    const next = out + ', ' + parts[i];
+    if (next.length > maxLen) { out += ` +${parts.length - i} more`; break; }
+    out = next;
+  }
+  return out;
+}
+
+function getTornadoTier(p) {
+  const headline = (p.parameters?.NWSheadline?.[0] || '').toUpperCase();
+  const desc = (p.description || '').toUpperCase();
+  const combined = headline + ' ' + desc;
+  if (combined.includes('TORNADO EMERGENCY')) return 'emergency';
+  if (combined.includes('PARTICULARLY DANGEROUS SITUATION')) return 'pds';
+  return 'standard';
+}
+
+function buildWarningLoc(alert) {
+  const p = alert.properties;
+  const stateMatch = p.areaDesc.match(/,\s*([A-Z]{2})\b/);
+  const state = stateMatch ? stateMatch[1] : '';
+  const desc = p.description || '';
+
+  // Split city names from NWS "..." or comma/"and" separators
+  function splitCityNames(raw) {
+    return raw.trim().replace(/\.$/, '')
+      .split(/\.{3}|,\s*(?:and\s+)?|\s+and\s+/i)
+      .map(s => s.trim())
+      .filter(s => s.length > 1 && s.length < 40 && !/^\d/.test(s));
+  }
+
+  // Title case "MOUNT VERNON OH" → "Mount Vernon OH" (keeps 2-letter state abbrevs uppercase)
+  function titleCase(s) {
+    return s.replace(/\b(\w)(\w*)\b/g, (match, first, rest) => {
+      if (match.length === 2 && /^[A-Z]{2}$/.test(match)) return match;
+      return first.toUpperCase() + rest.toLowerCase();
+    });
+  }
+
+  // Check if a city string already ends with a 2-letter state abbreviation
+  function hasState(city) {
+    return /\s[A-Z]{2}$/.test(city);
+  }
+
+  // Format top 3 cities NWS tweet style: "City1 ST, City2 ST and City3 ST"
+  function formatCities(cities, addState) {
+    if (!cities.length) return null;
+    const top = cities.slice(0, 3);
+    const named = top.map(c => (addState && state && !hasState(c)) ? `${c} ${state}` : c);
+    if (named.length === 1) return named[0];
+    if (named.length === 2) return `${named[0]} and ${named[1]}`;
+    return named.slice(0, -1).join(', ') + ' and ' + named[named.length - 1];
+  }
+
+  // Reformat NWS raw time "845 PM EDT" → "8:45 PM EDT"
+  function reformatNWSTime(raw) {
+    const m = raw.match(/(\d{3,4})\s*(AM|PM)\s*([A-Z]{2,4})/i);
+    if (!m) return null;
+    const digits = m[1];
+    const hour = digits.length === 3 ? digits[0] : digits.slice(0, 2);
+    const min = digits.slice(-2);
+    return `${hour}:${min} ${m[2].toUpperCase()} ${m[3].toUpperCase()}`;
+  }
+
+  // Extract time+timezone from text ("until 845 PM EDT")
+  function extractTime(text) {
+    const m = text.match(/until\s+(\d{3,4}\s*(?:AM|PM)\s*[A-Z]{2,4})/i);
+    if (m) return reformatNWSTime(m[1]);
+    return null;
+  }
+
+  // Get the correct local time+TZ from headline first, then description
+  const hl = p.parameters?.NWSheadline;
+  const headline = Array.isArray(hl) ? (hl[0] || '') : (hl || '');
+  const headlineTime = extractTime(headline) || extractTime(desc);
+
+  // DEBUG: log what we're working with so we can diagnose issues
+  console.group(`[WarningLoc] ${p.event} — ${p.areaDesc.substring(0, 60)}`);
+  console.log('NWSheadline:', headline);
+  console.log('Description (first 600 chars):', desc.substring(0, 600));
+
+  // --- SOURCE 1: NWSheadline with city names (not counties)
+  const hlMatch = headline.match(/(?:including|continues?\s+for|for)\s+(.+?)\s+until\b/i);
+  if (hlMatch) {
+    const loc = hlMatch[1].trim();
+    console.log('SOURCE 1 matched:', loc);
+    if (!/\bcounty\b|\bcounties\b/i.test(loc)) {
+      const cities = splitCityNames(loc).map(titleCase);
+      if (cities.length) {
+        const result = { cities, text: formatCities(cities, true), source: 'headline', time: headlineTime };
+        console.log('→ Using headline cities:', result.text);
+        console.groupEnd();
+        return result;
+      }
+    } else {
+      console.log('  (skipped — contains county/counties)');
+    }
+  } else {
+    console.log('SOURCE 1: no match (headline has no "for/including ... until" pattern)');
+  }
+
+  // Helper: extract cities from a "locations impacted include..." block
+  function extractImpactedCities(startIdx) {
+    const afterInclude = desc.substring(startIdx);
+    const contentStart = afterInclude.match(/\binclude[.\s]*/i);
+    if (!contentStart) return null;
+    const cityText = afterInclude.substring(contentStart.index + contentStart[0].length);
+    const endMatch = cityText.search(/\n\s*\n|\nTIME\.{3}|\nLAT\.{3}|\n&&|\n\$\$/);
+    const raw = (endMatch !== -1 ? cityText.substring(0, endMatch) : cityText)
+      .replace(/\n/g, ' ').replace(/\.$/, '').trim();
+    if (!raw || raw.toLowerCase() === 'none') return null;
+    return splitCityNames(raw);
+  }
+
+  // --- SOURCE 2a: "Locations impacted include..." (PRIMARY — without "Other")
+  // This is the main city list that matches what NWS tweets use
+  const primaryLocIdx = desc.search(/(?<!\bother\s)(?:^|\n|\*\s*)Locations impacted include/i);
+  if (primaryLocIdx !== -1) {
+    const cities = extractImpactedCities(primaryLocIdx);
+    if (cities && cities.length) {
+      console.log('SOURCE 2a primary cities:', cities.join(', '));
+      const result = { cities, text: formatCities(cities, true), source: 'impacted', time: headlineTime };
+      console.log('→ Using primary impacted cities:', result.text);
+      console.groupEnd();
+      return result;
+    }
+  } else {
+    console.log('SOURCE 2a: no primary "Locations impacted include" found');
+  }
+
+  // --- SOURCE 2b: "This dangerous storm will be near... City1 and City2"
+  // Used in TOR continuation warnings — these are the primary cities in the storm path
+  const nearMatch = desc.match(/(?:this\s+)?(?:dangerous\s+)?storm will be near[.\s]*\n([^\n]+)/i);
+  if (nearMatch) {
+    const raw = nearMatch[1].replace(/\s+around\s+\d.*/i, '').replace(/\.$/, '').trim();
+    const cities = splitCityNames(raw);
+    if (cities.length) {
+      console.log('SOURCE 2b "storm will be near" cities:', cities.join(', '));
+      const result = { cities, text: formatCities(cities, true), source: 'stormnear', time: headlineTime };
+      console.log('→ Using storm-near cities:', result.text);
+      console.groupEnd();
+      return result;
+    }
+  } else {
+    console.log('SOURCE 2b: no "storm will be near" pattern found');
+  }
+
+  // --- SOURCE 2c: "Other locations impacted by... include..." (SECONDARY — last resort before counties)
+  const otherLocIdx = desc.search(/other\s+locations\s+impacted\b.*?\binclude/i);
+  if (otherLocIdx !== -1) {
+    const cities = extractImpactedCities(otherLocIdx);
+    if (cities && cities.length) {
+      console.log('SOURCE 2c "Other locations" cities:', cities.join(', '));
+      const result = { cities, text: formatCities(cities, true), source: 'other_impacted', time: headlineTime };
+      console.log('→ Using "other locations" cities:', result.text);
+      console.groupEnd();
+      return result;
+    }
+  } else {
+    console.log('SOURCE 2c: no "Other locations impacted" found');
+  }
+
+  // --- SOURCE 4: Tornado/storm position from description
+  const posMatch = desc.match(
+    /(?:tornado|storm)\s+was\s+located\s+(?:\d+\s+miles?\s+[\w\s-]+?\s+of\s+|near\s+)([A-Z][a-zA-Z\s]+?)(?:,|\s+moving|\s+and\s)/i
+  );
+  if (posMatch) {
+    const city = posMatch[1].trim();
+    if (city.length > 1 && city.length < 40) {
+      const name = (state && !hasState(city)) ? `${city} ${state}` : city;
+      console.log('→ Using storm position:', name);
+      console.groupEnd();
+      return { cities: [city], text: name, source: 'position', time: headlineTime };
+    }
+  }
+
+  // --- SOURCE 5 (FALLBACK): county/area description
+  const area = p.areaDesc.replace(/;/g, ',');
+  console.log('→ FALLBACK to areaDesc:', area);
+  console.groupEnd();
+  return { cities: [], text: area, source: 'area', time: headlineTime };
+}
+
+function buildAlertCopy(alert, locOverride) {
+  const p = alert.properties;
+  // locOverride can be a string or a buildWarningLoc object {cities, text, source}
+  const area = (locOverride && typeof locOverride === 'object' ? locOverride.text : locOverride) || shortArea(p.areaDesc, 35);
+  const exp = formatTime(p.expires);
+
+  if (p.event === 'Tornado Warning') {
+    const det = (p.parameters?.tornadoDetection?.[0] || '').toUpperCase();
+    const confirmed = det.includes('CONFIRMED') || det.includes('OBSERVED');
+    const tier = getTornadoTier(p);
+    if (tier === 'emergency') {
+      return `TORNADO EMERGENCY: ${area} until ${exp}. THIS IS A LIFE-THREATENING SITUATION - SEEK SHELTER NOW!`;
+    }
+    if (tier === 'pds') {
+      return `PDS TORNADO WARNING: ${area} until ${exp}. PARTICULARLY DANGEROUS SITUATION - SEEK SHELTER NOW!`;
+    }
+    if (confirmed) {
+      return `CONFIRMED TORNADO: ${area} until ${exp}. SEEK SHELTER NOW!`;
+    }
+    return `TORNADO WARNING: ${area} until ${exp}. SEEK SHELTER NOW!`;
+  }
+  if (p.event === 'Tornado Watch') {
+    return `TORNADO WATCH: ${area} until ${exp}. Tornadoes possible!`;
+  }
+  if (p.event === 'Severe Thunderstorm Warning') {
+    const hail = p.parameters?.maxHailSize?.[0] ? `${p.parameters.maxHailSize[0]}" hail` : '';
+    const windVal = p.parameters?.maxWindGust?.[0] ? p.parameters.maxWindGust[0].toString().replace(/\s*mph\s*/i, '').replace(/^up\s+to\s+/i, '').trim() : '';
+    const wind = windVal ? `${windVal} mph winds` : '';
+    const hazards = [hail, wind].filter(Boolean).join(', ');
+    return `SEVERE THUNDERSTORM: ${area} until ${exp}${hazards ? '. ' + hazards : ''}.`;
+  }
+  if (p.event === 'Severe Thunderstorm Watch') {
+    return `SVR TSTM WATCH: ${area} until ${exp}. Large hail and damaging winds possible!`;
+  }
+  if (p.event === 'Flash Flood Emergency') {
+    return `FLASH FLOOD EMERGENCY: ${area}. LIFE-THREATENING flooding!`;
+  }
+  if (p.event === 'Flash Flood Warning') {
+    return `FLASH FLOOD WARNING: ${area} until ${exp}.`;
+  }
+  return `${p.event.toUpperCase()}: ${area} until ${exp}.`;
+}
+
+async function loadWarnings() {
+  const el = document.getElementById('warnings-results');
+  try {
+    const res = await fetch(
+      'https://api.weather.gov/alerts/active?event=Tornado%20Warning,Tornado%20Watch,Severe%20Thunderstorm%20Warning,Severe%20Thunderstorm%20Watch,Flash%20Flood%20Emergency,Flash%20Flood%20Warning&status=actual',
+      { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }
+    );
+    if (!res.ok) throw new Error(`NWS API error ${res.status}`);
+    const data = await res.json();
+    try {
+      renderWarnings(data.features || []);
+    } catch (renderErr) {
+      console.error('renderWarnings error:', renderErr);
+      el.innerHTML = `<div class="warnings-status" style="color:#ff6b7a;">Render error: ${renderErr.message}</div>`;
+    }
+  } catch (e) {
+    el.innerHTML = `<div class="warnings-status" style="color:#ff6b7a;">Error loading warnings: ${e.message}</div>`;
+  }
+}
+
+let renderedAlerts = [];
+const mapInstances = {};
+const alertCitiesCache = {}; // keyed by alert id
+
+function getPolyRings(geometry) {
+  if (!geometry?.coordinates) return [];
+  if (geometry.type === 'Polygon') return [geometry.coordinates[0]];
+  if (geometry.type === 'MultiPolygon') return geometry.coordinates.map(p => p[0]);
+  return [];
+}
+
+async function fetchPolygonCities(alert) {
+  const id = alert.id;
+  if (alertCitiesCache[id]) return alertCitiesCache[id];
+  const rings = getPolyRings(alert.geometry);
+  if (!rings.length) { alertCitiesCache[id] = []; return []; }
+
+  // Bounding box across all rings
+  const allCoords = rings.flat();
+  const lats = allCoords.map(c => c[1]), lngs = allCoords.map(c => c[0]);
+  const south = Math.min(...lats), north = Math.max(...lats);
+  const west = Math.min(...lngs), east = Math.max(...lngs);
+
+  // Use Census Bureau TIGERweb API — the SAME Census data the NWS uses
+  // Layer 4 = Incorporated Places, Layer 18 = Census Designated Places (CDPs)
+  // POP100 = 2020 Census population count
+  const baseUrl = 'https://tigerweb.geo.census.gov/arcgis/rest/services/Census2020/Places_CouSub_ConCity_SubMCD/MapServer';
+  const envelope = JSON.stringify({
+    xmin: west, ymin: south, xmax: east, ymax: north,
+    spatialReference: { wkid: 4326 }
+  });
+  const params = new URLSearchParams({
+    geometry: envelope,
+    geometryType: 'esriGeometryEnvelope',
+    spatialRel: 'esriSpatialRelIntersects',
+    outFields: 'BASENAME,NAME,POP100,CENTLAT,CENTLON,STATE',
+    returnGeometry: 'false',
+    inSR: '4326',
+    f: 'json'
+  });
+
+  try {
+    // Query both Incorporated Places (layer 4) and CDPs (layer 18) in parallel
+    const [incRes, cdpRes] = await Promise.all([
+      fetch(`${baseUrl}/4/query?${params}`),
+      fetch(`${baseUrl}/18/query?${params}`)
+    ]);
+    const [incData, cdpData] = await Promise.all([incRes.json(), cdpRes.json()]);
+    const allFeatures = [
+      ...(incData.features || []),
+      ...(cdpData.features || [])
+    ];
+
+    const cities = allFeatures
+      .map(f => ({
+        name: f.attributes.BASENAME || f.attributes.NAME,
+        lat: parseFloat(f.attributes.CENTLAT),
+        lng: parseFloat(f.attributes.CENTLON),
+        pop: f.attributes.POP100 || 0,
+        state: f.attributes.STATE
+      }))
+      // Filter to places whose centroid is actually inside the warning polygon
+      .filter(c => !isNaN(c.lat) && !isNaN(c.lng) && rings.some(ring => pointInPoly(c.lng, c.lat, ring)))
+      // Sort by 2020 Census population descending — matches NWS tweet city ordering
+      .sort((a, b) => b.pop - a.pop);
+
+    // Deduplicate by name (in case a place appears in both Inc. Places and CDPs)
+    const seen = new Set();
+    const unique = cities.filter(c => {
+      const key = `${c.name}_${c.state}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    console.log(`[CensusCities] ${alert.properties.event}: found ${unique.length} places in polygon`,
+      unique.slice(0, 6).map(c => `${c.name} (pop:${c.pop})`));
+    alertCitiesCache[id] = unique;
+    return unique;
+  } catch(e) {
+    console.warn('[CensusCities] Census API fetch failed:', e.message);
+    alertCitiesCache[id] = [];
+    return [];
+  }
+}
+
+// Format polygon cities into NWS tweet style text: "City1 ST, City2 ST and City3 ST"
+function formatPolygonCities(cities, areaDesc) {
+  if (!cities.length) return null;
+  const stateMatch = areaDesc.match(/,\s*([A-Z]{2})\b/);
+  const state = stateMatch ? stateMatch[1] : '';
+  const top = cities.slice(0, 3);
+  const named = top.map(c => state ? `${c.name} ${state}` : c.name);
+  if (named.length === 1) return named[0];
+  if (named.length === 2) return `${named[0]} and ${named[1]}`;
+  return named.slice(0, -1).join(', ') + ' and ' + named[named.length - 1];
+}
+
+function parseLocations(description, areaDesc) {
+  const stateMatch = areaDesc.match(/,\s*([A-Z]{2})\b/);
+  const state = stateMatch ? stateMatch[1] : '';
+
+  // NWS uses "..." as separators between cities
+  function splitCities(raw) {
+    return raw.trim().replace(/\.$/, '')
+      .split(/\.{3}|,\s*(?:and\s+)?|\s+and\s+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 1 && s.length < 40);
+  }
+
+  function formatCities(raw) {
+    if (!raw) return null;
+    const parts = splitCities(raw);
+    if (!parts.length) return null;
+    const capped = parts.slice(0, 3);
+    const withState = capped.map(c => state ? `${c} ${state}` : c);
+    const suffix = parts.length > 3 ? ' and surrounding areas' : '';
+    if (withState.length === 1) return withState[0] + suffix;
+    if (withState.length === 2) return `${withState[0]} and ${withState[1]}${suffix}`;
+    return `${withState.slice(0, -1).join(', ')} and ${withState[withState.length - 1]}${suffix}`;
+  }
+
+  // Parse "Locations impacted include..." section
+  const impactMatch = description.match(/Locations impacted include\.{0,3}\s*\n?([\s\S]*?)(?=\n\n|\n[A-Z]{2,}\.{3}|$)/i);
+  const impactRaw = impactMatch ? impactMatch[1].replace(/\n/g, ' ').replace(/\.$/, '').trim() : '';
+  const impactParts = impactRaw && impactRaw.toLowerCase() !== 'none' ? splitCities(impactRaw) : [];
+
+  // If we have impacted locations, use them directly — matches NWS Twitter format
+  if (impactParts.length) {
+    const capped = impactParts.slice(0, 3);
+    const withState = capped.map(c => state ? `${c} ${state}` : c);
+    const suffix = impactParts.length > 3 ? ' and surrounding areas' : '';
+    if (withState.length === 1) return withState[0] + suffix;
+    if (withState.length === 2) return `${withState[0]} and ${withState[1]}${suffix}`;
+    return `${withState.slice(0, -1).join(', ')} and ${withState[withState.length - 1]}${suffix}`;
+  }
+
+  // Fallback: "People near/in X should take cover/shelter"
+  const tc = description.match(/People\s+(?:in\s+and\s+near|near\s+and\s+north\s+of|near\s+and|in|near)\s+([A-Z][a-zA-Z\s]+?)(?=\s+should\s+take|\s+need\s+to\s+take)/i);
+  if (tc) {
+    const result = formatCities(tc[1]);
+    if (result) return result;
+  }
+
+  return null;
+}
+
+const watchZoneCache = {};
+
+async function fetchWatchZones(alert) {
+  const id = alert.id;
+  if (watchZoneCache[id]) return watchZoneCache[id];
+  const zones = (alert.properties.affectedZones || []).slice(0, 30);
+  if (!zones.length) { watchZoneCache[id] = []; return []; }
+  const results = await Promise.allSettled(
+    zones.map(url => fetch(url, { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }).then(r => r.json()))
+  );
+  const features = results
+    .filter(r => r.status === 'fulfilled' && r.value?.geometry)
+    .map(r => r.value);
+  watchZoneCache[id] = features;
+  return features;
+}
+
+function toggleWarningMap(btn, idx) {
+  const container = document.getElementById(`wmap-${idx}`);
+  const isHidden = container.style.display === 'none';
+  container.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? 'Hide Map' : 'Map Preview';
+  if (!isHidden) return;
+  if (mapInstances[idx]) { mapInstances[idx].invalidateSize(); return; }
+  const alert = renderedAlerts[idx];
+  const map = L.map(`wmap-${idx}`, { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  if (alert.geometry && alert.geometry.coordinates) {
+    const s = ALERT_STYLE[alert.properties.event] || { border: '#ff4444' };
+    const layer = L.geoJSON(alert, {
+      style: { color: s.border, weight: 2, fillColor: s.border, fillOpacity: 0.2 }
+    }).addTo(map);
+    map.fitBounds(layer.getBounds(), { padding: [16, 16] });
+  } else {
+    map.setView([39, -98], 5);
+    const s = ALERT_STYLE[alert.properties.event] || { border: '#ffaa00' };
+    fetchWatchZones(alert).then(features => {
+      if (!features.length) return;
+      const layer = L.geoJSON({ type: 'FeatureCollection', features }, {
+        style: { color: s.border, weight: 1.5, fillColor: s.border, fillOpacity: 0.15 }
+      }).addTo(map);
+      if (layer.getBounds().isValid()) {
+        map.fitBounds(layer.getBounds(), { padding: [16, 16] });
+      }
+    });
+  }
+  mapInstances[idx] = map;
+}
+
+// Determine the IANA timezone from a warning polygon's centroid longitude
+// This ensures we show the correct local time for the warning area,
+// not the browser's timezone (which may be different)
+function guessTimezoneFromPolygon(alert) {
+  const rings = getPolyRings(alert.geometry);
+  if (!rings.length) return null;
+  const allCoords = rings.flat();
+  const avgLng = allCoords.reduce((sum, c) => sum + c[0], 0) / allCoords.length;
+  // Rough US timezone boundaries by longitude
+  if (avgLng > -85) return 'America/New_York';     // Eastern
+  if (avgLng > -100) return 'America/Chicago';      // Central
+  if (avgLng > -115) return 'America/Denver';       // Mountain
+  return 'America/Los_Angeles';                      // Pacific
+}
+
+function buildSocialCopy(alert, locOverride) {
+  const p = alert.properties;
+  const ytLink = document.getElementById('yt-link')?.value?.trim() || '[paste your live link]';
+  const locObj = buildWarningLoc(alert); // returns {cities, text, source, time}
+  // Use polygon city override if provided, otherwise fall back to text-parsed location
+  const loc = locOverride || locObj.text;
+
+  // Use the timezone from the NWSheadline (matches the NWS tweet exactly)
+  // If headline time isn't available, determine timezone from polygon location
+  // so we always show the warning's local time, not the browser's timezone
+  let expTZ = locObj.time || formatTime(p.expires);
+  if (!locObj.time) {
+    try {
+      const d = new Date(p.expires);
+      const tz = guessTimezoneFromPolygon(alert);
+      if (tz) {
+        // Format in the warning area's local timezone
+        expTZ = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz, timeZoneName: 'short' });
+      } else {
+        expTZ = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+      }
+    } catch(e) { /* keep original */ }
+  }
+
+  // Rotate the tracking line so posts aren't repetitive
+  const trackingLines = [
+    `We're tracking this LIVE now: ${ytLink}`,
+    `We're LIVE now: ${ytLink}`
+  ];
+  const trackLine = trackingLines[Math.floor(Math.random() * trackingLines.length)];
+
+  if (p.event === 'Tornado Warning') {
+    const tier = getTornadoTier(p);
+    const det = (p.parameters?.tornadoDetection?.[0] || '').toUpperCase();
+    const isObserved = det.includes('OBSERVED');
+    const isConfirmed = det.includes('CONFIRMED');
+
+    if (tier === 'emergency') {
+      // TORNADO EMERGENCY for [loc] until [time]. This is a LIFE THREATENING SITUATION! Seek Shelter!
+      return `TORNADO EMERGENCY for ${loc} until ${expTZ}. This is a LIFE THREATENING SITUATION! Seek Shelter!\n\n${trackLine}`;
+    }
+    if (tier === 'pds') {
+      // PDS Tornado Warning for [loc] until [time].
+      // This is a PARTICULARLY DANGEROUS SITUATION, SEEK SHELTER!
+      return `PDS Tornado Warning for ${loc} until ${expTZ}.\nThis is a PARTICULARLY DANGEROUS SITUATION, SEEK SHELTER!\n\n${trackLine}`;
+    }
+    if (isConfirmed || isObserved) {
+      // Confirmed (or Observed) Tornado Warning for [loc] until [time]. Seek Shelter!
+      const label = isObserved ? 'Observed' : 'Confirmed';
+      return `${label} Tornado Warning for ${loc} until ${expTZ}. Seek Shelter!\n\n${trackLine}`;
+    }
+    // Standard tornado warning
+    return `Tornado Warning for ${loc} until ${expTZ}. Seek Shelter!\n\n${trackLine}`;
+  }
+
+  if (p.event === 'Severe Thunderstorm Warning') {
+    const windRaw = p.parameters?.maxWindGust?.[0];
+    const windNum = windRaw ? windRaw.toString().replace(/\s*mph\s*/i, '').replace(/^up\s+to\s+/i, '').trim() : '';
+    // Check for destructive/PDS SVR (thunderstormDamageThreat parameter)
+    const damageThreat = (p.parameters?.thunderstormDamageThreat?.[0] || '').toUpperCase();
+    const isDestructive = damageThreat.includes('DESTRUCTIVE') ||
+      (p.parameters?.NWSheadline?.[0] || '').toUpperCase().includes('PARTICULARLY DANGEROUS');
+
+    if (isDestructive && windNum) {
+      return `Severe Thunderstorm Warning including ${loc} until ${expTZ}. This DESTRUCTIVE STORM will contain wind gusts to ${windNum} MPH! Seek Shelter!\n\n${trackLine}`;
+    }
+    if (isDestructive) {
+      return `Severe Thunderstorm Warning including ${loc} until ${expTZ}. This DESTRUCTIVE STORM may contain damaging winds and large hail! Seek Shelter!\n\n${trackLine}`;
+    }
+    // Standard SVR — no wind/hail details
+    return `Severe Thunderstorm Warning including ${loc} until ${expTZ}.\n\n${trackLine}`;
+  }
+
+  if (p.event === 'Flash Flood Emergency') {
+    // Flash Flood Emergency for [loc] until [time]. This is a life threatening situation. Seek higher ground immediately!
+    return `Flash Flood Emergency for ${loc} until ${expTZ}. This is a life threatening situation. Seek higher ground immediately!\n\n${trackLine}`;
+  }
+
+  if (p.event === 'Flash Flood Warning') {
+    return `Flash Flood Warning for ${loc} until ${expTZ}. Seek higher ground if flooding is occurring!\n\n${trackLine}`;
+  }
+
+  if (p.event === 'Tornado Watch') {
+    return `Tornado Watch for ${loc} until ${expTZ}. Tornadoes possible, stay weather aware!\n\n${trackLine}`;
+  }
+
+  if (p.event === 'Severe Thunderstorm Watch') {
+    return `Severe Thunderstorm Watch for ${loc} until ${expTZ}. Large hail and damaging winds possible!\n\n${trackLine}`;
+  }
+
+  // Fallback for any other alert type
+  return `${p.event} for ${loc} until ${expTZ}.\n\n${trackLine}`;
+}
+
+async function copySocialAlert(btn, idx) {
+  const alert = renderedAlerts[idx];
+  const orig = btn.textContent;
+
+  // Try polygon city lookup first (matches NWS tweet style)
+  let polyLoc = null;
+  if (alert.geometry) {
+    btn.textContent = 'Looking up cities...';
+    btn.disabled = true;
+    try {
+      const cities = await fetchPolygonCities(alert);
+      polyLoc = formatPolygonCities(cities, alert.properties.areaDesc);
+      if (polyLoc) console.log('[CopySocial] Using polygon cities:', polyLoc);
+    } catch(e) {
+      console.warn('[CopySocial] Polygon lookup failed, using text fallback:', e.message);
+    }
+    btn.disabled = false;
+  }
+
+  const text = buildSocialCopy(alert, polyLoc);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+async function copyChatAlert(btn, idx) {
+  const alert = renderedAlerts[idx];
+  const orig = btn.textContent;
+
+  // Try polygon city lookup first (matches NWS tweet style)
+  let polyLoc = null;
+  if (alert.geometry) {
+    btn.textContent = 'Looking up cities...';
+    btn.disabled = true;
+    try {
+      const cities = await fetchPolygonCities(alert);
+      polyLoc = formatPolygonCities(cities, alert.properties.areaDesc);
+      if (polyLoc) console.log('[CopyChat] Using polygon cities:', polyLoc);
+    } catch(e) {
+      console.warn('[CopyChat] Polygon lookup failed, using text fallback:', e.message);
+    }
+    btn.disabled = false;
+  }
+
+  // Pass polygon location text or fall back to buildWarningLoc
+  const locObj = polyLoc || buildWarningLoc(alert);
+  const text = buildAlertCopy(alert, locObj);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+function renderWarnings(alerts) {
+  const el = document.getElementById('warnings-results');
+  const now = new Date();
+  const checked = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+
+  function alertCounterKey(alert) {
+    if (alert.properties.event === 'Tornado Warning') {
+      const tier = getTornadoTier(alert.properties);
+      if (tier === 'emergency') return 'Tornado Emergency';
+      if (tier === 'pds') return 'PDS Tornado Warning';
+    }
+    return alert.properties.event;
+  }
+
+  alerts.sort((a, b) => {
+    const ai = ALERT_ORDER.indexOf(alertCounterKey(a));
+    const bi = ALERT_ORDER.indexOf(alertCounterKey(b));
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  Object.values(mapInstances).forEach(m => m.remove());
+  Object.keys(mapInstances).forEach(k => delete mapInstances[k]);
+  renderedAlerts = alerts;
+
+  const counter = document.getElementById('warning-counter');
+  const counts = {};
+  alerts.forEach(a => { const k = alertCounterKey(a); counts[k] = (counts[k] || 0) + 1; });
+  counter.style.cssText = `display:${alerts.length ? 'flex' : 'none'};flex-wrap:wrap;gap:8px;margin-bottom:16px;`;
+  counter.innerHTML = ALERT_ORDER
+    .filter(e => counts[e])
+    .map(e => {
+      const s = ALERT_STYLE[e];
+      const pulse = (e === 'Tornado Warning' || e === 'PDS Tornado Warning' || e === 'Tornado Emergency') ? 'animation:pulse 1.5s ease-in-out infinite;' : '';
+      return `<div style="background:${s.bg};border:1px solid ${s.border};border-radius:8px;padding:7px 14px;display:flex;align-items:center;gap:10px;${pulse}">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:${s.color};">${s.short}</span>
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:24px;color:${s.color};line-height:1;">${counts[e]}</span>
+      </div>`;
+    }).join('');
+
+  if (!alerts.length) {
+    el.innerHTML = `<div class="warnings-status">No active tornado, severe thunderstorm, or flash flood warnings.<br><span style="font-size:11px;">Last checked: ${checked} · Auto-refreshes every 10s</span></div>`;
+    return;
+  }
+
+  const cards = alerts.map((alert, idx) => {
+    const p = alert.properties;
+    let s = ALERT_STYLE[p.event] || { color: '#fff', bg: '#222', border: '#555', short: p.event };
+    const copyText = buildAlertCopy(alert);
+    const len = copyText.length;
+    const isNew = (now - new Date(p.effective)) < 10 * 60 * 1000;
+    const det = p.parameters?.tornadoDetection?.[0] || null;
+    let badgeLabel = s.short;
+    let cardBorder = s.border;
+    if (p.event === 'Tornado Warning') {
+      const tier = getTornadoTier(p);
+      if (tier === 'emergency') {
+        badgeLabel = 'TORNADO EMERGENCY';
+        cardBorder = '#ff00ff';
+        s = { ...s, color: '#ff00ff', bg: '#2a002a', border: '#ff00ff' };
+      } else if (tier === 'pds') {
+        badgeLabel = 'PDS TORNADO WARNING';
+        cardBorder = '#ff44ff';
+        s = { ...s, color: '#ff44ff', bg: '#2a0020', border: '#ff44ff' };
+      }
+    }
+
+    return `<div class="alert-card" style="border-color:${cardBorder};">
+      <div class="alert-card-top">
+        <span class="alert-badge" style="background:${s.bg};color:${s.color};border-color:${s.border};">${badgeLabel}</span>
+        ${isNew ? '<span class="alert-new">NEW</span>' : ''}
+      </div>
+      <div class="alert-area">${p.areaDesc.replace(/;/g, ' ·')}</div>
+      <div class="alert-meta">
+        <span>Expires: ${formatTime(p.expires)}</span>
+        ${det ? `<span style="color:${s.color};font-weight:600;">${det}</span>` : ''}
+      </div>
+      <div class="alert-copy-text">${copyText}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:6px;">
+        <span style="font-size:11px;color:${len > 85 ? '#f4c542' : 'var(--muted)'};">${len}/100</span>
+        <div style="display:flex;gap:6px;">
+          <button class="wx-copy-btn" onclick="toggleWarningMap(this,${idx})">Map Preview</button>
+          <button class="wx-copy-btn" onclick="copyChatAlert(this,${idx})">💬 Chat</button>
+          <button class="wx-copy-btn" style="border-color:var(--accent);color:var(--accent);" onclick="copySocialAlert(this,${idx})">📱 Social</button>
+        </div>
+      </div>
+      <div id="wmap-${idx}" style="display:none;height:220px;border-radius:8px;overflow:hidden;margin-top:8px;position:relative;"></div>
+    </div>`;
+  }).join('');
+
+
+  el.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px;">
+      ${alerts.length} active warning${alerts.length !== 1 ? 's' : ''} · Last checked: ${checked} · Auto-refreshes every 10s
+    </div>
+    <div class="alerts-grid">${cards}</div>`;
+}
+
+// ─── SPC OUTLOOK ──────────────────────────────────────────────────────────────
+
+const SPC_URLS = [
+  { day: 1, url: 'https://www.spc.noaa.gov/products/outlook/day1otlk_cat.nolyr.geojson', title: 'Day 1 Convective Outlook' },
+  { day: 2, url: 'https://www.spc.noaa.gov/products/outlook/day2otlk_cat.nolyr.geojson', title: 'Day 2 Convective Outlook' },
+  { day: 3, url: 'https://www.spc.noaa.gov/products/outlook/day3otlk_cat.nolyr.geojson', title: 'Day 3 Convective Outlook' },
+];
+
+const SPC_COLORS = {
+  HIGH: { fill: '#ff44ff', stroke: '#dd00dd', opacity: 0.55, label: 'High',        num: '5' },
+  MDT:  { fill: '#e88282', stroke: '#cc4444', opacity: 0.55, label: 'Moderate',    num: '4' },
+  ENH:  { fill: '#e8c467', stroke: '#cc9900', opacity: 0.50, label: 'Enhanced',    num: '3' },
+  SLGT: { fill: '#f6f67e', stroke: '#cccc00', opacity: 0.45, label: 'Slight',      num: '2' },
+  MRGL: { fill: '#66a366', stroke: '#338833', opacity: 0.45, label: 'Marginal',    num: '1' },
+  TSTM: { fill: '#99cc99', stroke: '#559955', opacity: 0.30, label: 'Gen Thunder', num: '' },
+};
+
+const spcMaps = {};
+const spcGeojsonCache = {};
+const spcCacheTimes = {};
+
+function parseSpcIssuedTime(str) {
+  if (!str) return null;
+  // Format A: "1900Z 03/05/2026"
+  let m = str.match(/(\d{2})(\d{2})Z\s+(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) return new Date(Date.UTC(+m[5], +m[3]-1, +m[4], +m[1], +m[2]));
+  // Format B: "1900Z Tue Mar 05 2026"
+  const MON = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  m = str.match(/(\d{2})(\d{2})Z\s+\w+\s+(\w+)\s+(\d{1,2})\s+(\d{4})/);
+  if (m && MON[m[3]] !== undefined) return new Date(Date.UTC(+m[5], MON[m[3]], +m[4], +m[1], +m[2]));
+  return null;
+}
+
+// Single Overpass query for all risk levels in a day, assigns cities by polygon
+async function fetchAllSpcDayCities(geojson) {
+  const riskOrder = ['HIGH','MDT','ENH','SLGT','MRGL'];
+  const byLabel = {};
+  geojson.features.forEach(f => {
+    const lbl = f.properties.LABEL;
+    if (riskOrder.includes(lbl)) {
+      if (!byLabel[lbl]) byLabel[lbl] = [];
+      byLabel[lbl].push(f);
+    }
+  });
+  const activeLabels = riskOrder.filter(l => byLabel[l]);
+  if (!activeLabels.length) return {};
+
+  // Bbox across ALL risk features combined
+  const allRings = activeLabels.flatMap(l => byLabel[l].flatMap(f => getPolyRings(f.geometry)));
+  if (!allRings.length) return {};
+  const allCoords = allRings.flat();
+  const lats = allCoords.map(c => c[1]), lngs = allCoords.map(c => c[0]);
+  const s = Math.min(...lats), n = Math.max(...lats);
+  const w = Math.min(...lngs), e = Math.max(...lngs);
+
+  // One Overpass query for entire day's outlook area
+  const query = `[out:json][timeout:25];node["place"~"^(city|town)$"]["name"](${s},${w},${n},${e});out tags;`;
+  let elements = [];
+  try {
+    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+    const data = await res.json();
+    elements = data.elements || [];
+  } catch { return {}; }
+
+  if (!elements.length) return {};
+
+  // Pre-compute rings per label
+  const ringsByLabel = {};
+  activeLabels.forEach(lbl => {
+    ringsByLabel[lbl] = byLabel[lbl].flatMap(f => getPolyRings(f.geometry));
+  });
+
+  // Assign each city to its highest-risk polygon it falls in
+  const buckets = {};
+  const placeRank = { city: 0, town: 1 };
+  elements.forEach(node => {
+    for (const lbl of activeLabels) {
+      if (ringsByLabel[lbl].some(ring => pointInPoly(node.lon, node.lat, ring))) {
+        if (!buckets[lbl]) buckets[lbl] = [];
+        buckets[lbl].push(node);
+        break;
+      }
+    }
+  });
+
+  // Format results
+  const result = {};
+  activeLabels.forEach(lbl => {
+    const nodes = (buckets[lbl] || [])
+      .sort((a, b) => (placeRank[a.tags.place] ?? 9) - (placeRank[b.tags.place] ?? 9));
+    result[lbl] = nodes.slice(0, 6).map(node => {
+      const st = node.tags['addr:state'] || node.tags['is_in:state_code'] || '';
+      return st ? `${node.tags.name}, ${st}` : node.tags.name;
+    }).join(', ') || '—';
+  });
+  return result;
+}
+
+function renderSpcDay(day, geojson) {
+  const container = document.getElementById(`spc-day-${day}`);
+  const { title } = SPC_URLS.find(u => u.day === day);
+
+  const props = geojson.features[0]?.properties || {};
+  const issuedDate = parseSpcIssuedTime(props.ISSUED || props.ISSUTIME || '');
+  const issuedCST = issuedDate
+    ? issuedDate.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
+    : '';
+  const validRaw = props.VALID || props.VALIDTIME || '';
+  const validDate = parseSpcIssuedTime(validRaw);
+  const validCST = validDate
+    ? validDate.toLocaleString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric' })
+    : '';
+
+  const order = ['TSTM','MRGL','SLGT','ENH','MDT','HIGH'];
+  const byLabel = {};
+  geojson.features.forEach(f => {
+    const lbl = f.properties.LABEL;
+    if (!byLabel[lbl]) byLabel[lbl] = [];
+    byLabel[lbl].push(f);
+  });
+  const tableRisks = order.filter(l => l !== 'TSTM' && byLabel[l]).reverse();
+
+  const legendHtml = ['HIGH','MDT','ENH','SLGT','MRGL','TSTM'].map(l => {
+    const c = SPC_COLORS[l];
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+      <span style="font-size:9px;font-weight:700;color:#000;background:${c.fill};width:15px;height:15px;border-radius:2px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${c.num}</span>
+      <span style="font-size:10px;color:var(--text);">${c.label}</span>
+    </div>`;
+  }).join('');
+
+  const tableRowsHtml = tableRisks.map(lbl => {
+    const c = SPC_COLORS[lbl];
+    return `<tr>
+      <td style="padding:6px 10px;font-weight:700;font-size:12px;color:#000;background:${c.fill};white-space:nowrap;">${lbl}</td>
+      <td id="spc-cities-d${day}-${lbl}" style="padding:6px 10px;font-size:11px;color:var(--muted);">Loading...</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1.5px;">${title}</div>
+      ${validCST ? `<div style="font-size:12px;font-weight:600;color:var(--text);margin-top:1px;">Valid: ${validCST}</div>` : ''}
+      ${issuedCST ? `<div style="font-size:11px;color:var(--muted);">Issued: ${issuedCST}</div>` : ''}
+      <div id="spc-countdown-d${day}" style="font-size:11px;color:var(--accent2);margin-top:2px;"></div>
+    </div>
+    <div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+      <div id="spc-map-day${day}" style="aspect-ratio:1;width:100%;"></div>
+      <div style="position:absolute;bottom:10px;right:10px;z-index:1000;background:rgba(13,13,15,0.88);border:1px solid var(--border);border-radius:6px;padding:8px 10px;">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">RISK LEVEL</div>
+        ${legendHtml}
+      </div>
+    </div>`;
+
+  // Destroy old map if it exists (container was replaced by innerHTML above)
+  if (spcMaps[day]) { spcMaps[day].remove(); delete spcMaps[day]; }
+
+  // Init map
+  const map = L.map(`spc-map-day${day}`, {
+    zoomControl: false, attributionControl: false,
+    scrollWheelZoom: false, dragging: false, touchZoom: false,
+    doubleClickZoom: false, boxZoom: false, keyboard: false
+  });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  map.setView([38, -96], 4);
+  let combinedBounds = null;
+  order.forEach(lbl => {
+    if (!byLabel[lbl]) return;
+    const c = SPC_COLORS[lbl];
+    const layer = L.geoJSON({ type: 'FeatureCollection', features: byLabel[lbl] }, {
+      style: { color: c.stroke, weight: 1.5, fillColor: c.fill, fillOpacity: c.opacity }
+    }).addTo(map);
+    const b = layer.getBounds();
+    if (b.isValid()) combinedBounds = combinedBounds ? combinedBounds.extend(b) : b;
+  });
+  spcMaps[day] = map;
+  // Defer fitBounds until after browser has laid out all three map containers
+  const bounds = combinedBounds;
+  setTimeout(() => {
+    map.invalidateSize();
+    if (bounds?.isValid()) map.fitBounds(bounds, { padding: [24, 24] });
+  }, day * 100); // stagger by day to avoid simultaneous reflows
+
+}
+
+// SPC issuance schedule (UTC hours, approximate)
+const SPC_SCHEDULE_UTC = {
+  1: [6, 13, 16.5, 20, 23],
+  2: [6, 17.5],
+  3: [13.5],
+};
+
+function getNextSpcUpdate(day) {
+  const hours = SPC_SCHEDULE_UTC[day] || SPC_SCHEDULE_UTC[1];
+  const now = new Date();
+  const nowUTC = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+  const todayNext = hours.find(h => h > nowUTC);
+  const nextUTC = todayNext !== undefined ? todayNext : hours[0] + 24;
+  const next = new Date();
+  next.setUTCHours(Math.floor(nextUTC % 24), Math.round((nextUTC % 1) * 60), 0, 0);
+  if (nextUTC >= 24) next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+function tickSpcCountdowns() {
+  SPC_URLS.forEach(({ day }) => {
+    const el = document.getElementById(`spc-countdown-d${day}`);
+    if (!el) return;
+    const diff = getNextSpcUpdate(day) - Date.now();
+    if (diff <= 0) { el.textContent = 'Update imminent'; return; }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    el.textContent = `Next update in ${h ? h + 'h ' : ''}${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+  });
+}
+
+async function loadSpcOutlook() {
+  const now = Date.now();
+  await Promise.all(SPC_URLS.map(async ({ day, url }) => {
+    // Use JS cache if less than 10 minutes old (handles tab switching without re-fetching)
+    if (spcGeojsonCache[day] && (now - (spcCacheTimes[day] || 0)) < 600000) {
+      renderSpcDay(day, spcGeojsonCache[day]);
+      return;
+    }
+    document.getElementById(`spc-day-${day}`).innerHTML =
+      `<div style="color:var(--muted);padding:20px;font-size:13px;">Loading Day ${day}...</div>`;
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const geojson = await res.json();
+      spcGeojsonCache[day] = geojson;
+      spcCacheTimes[day] = now;
+      renderSpcDay(day, geojson);
+    } catch {
+      document.getElementById(`spc-day-${day}`).innerHTML =
+        `<div style="color:#ff6b7a;padding:20px;">Failed to load Day ${day}.</div>`;
+    }
+  }));
+  if (spcCountdownInterval) clearInterval(spcCountdownInterval);
+  tickSpcCountdowns();
+  spcCountdownInterval = setInterval(tickSpcCountdowns, 1000);
+}
+
+const RISK_STYLE = {
+  'HIGH': { label: 'HIGH',     color: '#ff80ff', bg: '#3a003a' },
+  'MDT':  { label: 'MODERATE', color: '#e88282', bg: '#3a0f0f' },
+  'ENH':  { label: 'ENHANCED', color: '#e8c467', bg: '#3a2800' },
+  'SLGT': { label: 'SLIGHT',   color: '#f6f67e', bg: '#3a3a00' },
+  'MRGL': { label: 'MARGINAL', color: '#66a366', bg: '#0f2a0f' },
+  'TSTM': { label: 'GEN THUNDER', color: '#99cc99', bg: '#0f1f0f' },
+};
+
+function pointInPoly(lng, lat, coords) {
+  let inside = false;
+  for (let i = 0, j = coords.length - 1; i < coords.length; j = i++) {
+    const [xi, yi] = coords[i], [xj, yj] = coords[j];
+    if (((yi > lat) !== (yj > lat)) && lng < ((xj - xi) * (lat - yi) / (yj - yi) + xi))
+      inside = !inside;
+  }
+  return inside;
+}
+
+function getRisk(lng, lat, geojson) {
+  if (!geojson || !geojson.features) return null;
+  for (const risk of ['HIGH','MDT','ENH','SLGT','MRGL','TSTM']) {
+    for (const feat of geojson.features) {
+      if (feat.properties.LABEL !== risk || !feat.geometry) continue;
+      const polys = feat.geometry.type === 'Polygon' ? [feat.geometry.coordinates] : feat.geometry.coordinates;
+      for (const poly of polys) {
+        if (pointInPoly(lng, lat, poly[0])) return risk;
+      }
+    }
+  }
+  return null;
+}
+
+function riskBadgeHtml(risk) {
+  if (!risk) return '<div class="wx-no-risk">No SPC risk</div>';
+  const r = RISK_STYLE[risk];
+  return `<div class="wx-risk-badge" style="background:${r.bg};color:${r.color};">⚡ ${r.label}</div>`;
+}
+
+const STATE_CENTROIDS = {
+  'AL':[32.8,-86.8],'AK':[64.2,-153.4],'AZ':[34.3,-111.1],'AR':[34.8,-92.2],
+  'CA':[37.2,-119.5],'CO':[39.0,-105.5],'CT':[41.6,-72.7],'DE':[39.0,-75.5],
+  'FL':[28.5,-81.5],'GA':[32.7,-83.5],'HI':[20.8,-156.3],'ID':[44.3,-114.5],
+  'IL':[40.0,-89.2],'IN':[40.3,-86.1],'IA':[42.0,-93.5],'KS':[38.5,-98.4],
+  'KY':[37.5,-85.3],'LA':[31.1,-91.9],'ME':[45.4,-69.0],'MD':[39.1,-76.8],
+  'MA':[42.3,-71.8],'MI':[44.3,-85.4],'MN':[46.3,-94.3],'MS':[32.7,-89.7],
+  'MO':[38.5,-92.5],'MT':[47.0,-109.6],'NE':[41.5,-99.9],'NV':[38.5,-116.9],
+  'NH':[43.7,-71.6],'NJ':[40.2,-74.7],'NM':[34.5,-106.1],'NY':[43.0,-76.5],
+  'NC':[35.5,-79.4],'ND':[47.5,-100.5],'OH':[40.4,-82.8],'OK':[35.6,-97.5],
+  'OR':[44.1,-120.5],'PA':[40.9,-77.8],'RI':[41.7,-71.5],'SC':[33.9,-80.9],
+  'SD':[44.4,-100.2],'TN':[35.9,-86.4],'TX':[31.5,-99.3],'UT':[39.3,-111.5],
+  'VT':[44.0,-72.7],'VA':[37.5,-79.5],'WA':[47.4,-120.5],'WV':[38.6,-80.6],
+  'WI':[44.5,-89.8],'WY':[43.0,-107.6],'DC':[38.9,-77.0],
+};
+
+const DIRECTIONS = [
+  { patterns:['north central','north-central'], label:'North Central', offset:[1.5,0] },
+  { patterns:['south central','south-central'], label:'South Central', offset:[-1.5,0] },
+  { patterns:['east central','east-central'],   label:'East Central',  offset:[0,1.5] },
+  { patterns:['west central','west-central'],   label:'West Central',  offset:[0,-1.5] },
+  { patterns:['northeast','northeastern','ne ','ne,'], label:'Northeast', offset:[1.8,1.8] },
+  { patterns:['northwest','northwestern','nw ','nw,'], label:'Northwest', offset:[1.8,-1.8] },
+  { patterns:['southeast','southeastern','se ','se,'], label:'Southeast', offset:[-1.8,1.8] },
+  { patterns:['southwest','southwestern','sw ','sw,'], label:'Southwest', offset:[-1.8,-1.8] },
+  { patterns:['northern','north ','north,'],  label:'Northern',  offset:[2.2,0] },
+  { patterns:['southern','south ','south,'],  label:'Southern',  offset:[-2.2,0] },
+  { patterns:['eastern','east ','east,'],     label:'Eastern',   offset:[0,2.2] },
+  { patterns:['western','west ','west,'],     label:'Western',   offset:[0,-2.2] },
+  { patterns:['central'],                     label:'Central',   offset:[0,0] },
+];
+
+function parseRegionalQuery(query) {
+  const q = query.toLowerCase().trim() + ' ';
+  let stateAbbr = null;
+  // Match full state name
+  for (const [name, abbr] of Object.entries(STATE_ABBR)) {
+    if (q.includes(name.toLowerCase())) { stateAbbr = abbr; break; }
+  }
+  // Match 2-letter abbreviation as standalone word
+  if (!stateAbbr) {
+    const m = q.match(/\b([a-z]{2})\b/g) || [];
+    for (const a of m) {
+      const up = a.toUpperCase();
+      if (STATE_CENTROIDS[up]) { stateAbbr = up; break; }
+    }
+  }
+  if (!stateAbbr || !STATE_CENTROIDS[stateAbbr]) return null;
+  let dirLabel = '', offset = null;
+  for (const dir of DIRECTIONS) {
+    if (dir.patterns.some(p => q.includes(p))) {
+      dirLabel = dir.label; offset = dir.offset; break;
+    }
+  }
+  if (!dirLabel) return null; // not a regional query, let Nominatim handle it
+  const [baseLat, baseLon] = STATE_CENTROIDS[stateAbbr];
+  const stateName = Object.entries(STATE_ABBR).find(([,a]) => a === stateAbbr)?.[0] || stateAbbr;
+  return {
+    lat: (baseLat + offset[0]).toFixed(4),
+    lon: (baseLon + offset[1]).toFixed(4),
+    displayName: `${dirLabel} ${stateName}`,
+    stateAbbr,
+  };
+}
+
+const STATE_ABBR = {
+  'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR','California':'CA',
+  'Colorado':'CO','Connecticut':'CT','Delaware':'DE','Florida':'FL','Georgia':'GA',
+  'Hawaii':'HI','Idaho':'ID','Illinois':'IL','Indiana':'IN','Iowa':'IA',
+  'Kansas':'KS','Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD',
+  'Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS','Missouri':'MO',
+  'Montana':'MT','Nebraska':'NE','Nevada':'NV','New Hampshire':'NH','New Jersey':'NJ',
+  'New Mexico':'NM','New York':'NY','North Carolina':'NC','North Dakota':'ND','Ohio':'OH',
+  'Oklahoma':'OK','Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC',
+  'South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT','Vermont':'VT',
+  'Virginia':'VA','Washington':'WA','West Virginia':'WV','Wisconsin':'WI','Wyoming':'WY',
+  'District of Columbia':'DC','Puerto Rico':'PR',
+};
+
+function getStateAbbr(displayName) {
+  const parts = displayName.split(',').map(s => s.trim());
+  for (const part of parts) {
+    for (const [name, abbr] of Object.entries(STATE_ABBR)) {
+      if (part === name) return abbr;
+    }
+  }
+  return '';
+}
+
+async function lookupWeather(inputId = 'wx-input', resultsId = 'wx-results') {
+  const query = document.getElementById(inputId).value.trim();
+  if (!query) return;
+  const results = document.getElementById(resultsId);
+  results.innerHTML = '<div class="wx-status">Looking up forecast...</div>';
+  try {
+    let latF, lonF, locationLabel, isRegion = false;
+
+    const regional = parseRegionalQuery(query);
+    if (regional) {
+      latF = regional.lat;
+      lonF = regional.lon;
+      locationLabel = `${regional.displayName}, ${regional.stateAbbr}`;
+      isRegion = true;
+    } else {
+      const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=us&limit=5&q=${encodeURIComponent(query)}`);
+      const geoData = await geoRes.json();
+      if (!geoData.length) throw new Error('Location not found. Try "City, ST" or "Southeast Missouri".');
+
+      // If the query includes a state, prefer a result that matches it
+      const queriedState = (() => {
+        const q = ' ' + query.toLowerCase() + ' ';
+        for (const [name, abbr] of Object.entries(STATE_ABBR)) {
+          if (q.includes(' ' + name.toLowerCase() + ' ') || q.includes(' ' + name.toLowerCase())) return abbr;
+        }
+        const m = query.trim().match(/\b([A-Za-z]{2})\s*$/);
+        if (m && STATE_CENTROIDS[m[1].toUpperCase()]) return m[1].toUpperCase();
+        return null;
+      })();
+      const geo = (queriedState && geoData.find(g => getStateAbbr(g.display_name) === queriedState)) || geoData[0];
+      latF = parseFloat(geo.lat).toFixed(4);
+      lonF = parseFloat(geo.lon).toFixed(4);
+      isRegion = ['administrative', 'state_district', 'county', 'region'].includes(geo.type) || geo.class === 'boundary';
+      const rawName = geo.display_name.split(',')[0].trim();
+      const stateAbbr = getStateAbbr(geo.display_name);
+      locationLabel = stateAbbr ? `${rawName}, ${stateAbbr}` : rawName;
+    }
+
+    const [ptsRes, spc1, spc2, spc3, alertsJson] = await Promise.all([
+      fetch(`https://api.weather.gov/points/${latF},${lonF}`, { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }),
+      fetch('https://www.spc.noaa.gov/products/outlook/day1otlk_cat.nolyr.geojson').then(r => r.json()).catch(() => null),
+      fetch('https://www.spc.noaa.gov/products/outlook/day2otlk_cat.nolyr.geojson').then(r => r.json()).catch(() => null),
+      fetch('https://www.spc.noaa.gov/products/outlook/day3otlk_cat.nolyr.geojson').then(r => r.json()).catch(() => null),
+      fetch(`https://api.weather.gov/alerts/active?point=${latF},${lonF}`, { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }).then(r => r.json()).catch(() => null),
+    ]);
+
+    if (!ptsRes.ok) throw new Error('NWS has no forecast for this location. Try a nearby larger city.');
+    const ptsData = await ptsRes.json();
+    const fcRes = await fetch(ptsData.properties.forecast, { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } });
+    const fcData = await fcRes.json();
+    const periods = fcData.properties.periods.slice(0, 6);
+
+    const lng = parseFloat(lonF), lt = parseFloat(latF);
+    const risks = [getRisk(lng, lt, spc1), getRisk(lng, lt, spc2), getRisk(lng, lt, spc3)];
+    const activeAlerts = (alertsJson?.features || []).filter(f => ALERT_STYLE[f.properties.event]);
+
+    renderForecast(locationLabel, periods, risks, isRegion, resultsId, activeAlerts);
+  } catch (e) {
+    results.innerHTML = `<div class="wx-error">Error: ${e.message}</div>`;
+  }
+}
+
+function lookupMonitorWeather() {
+  lookupWeather('monitor-wx-input', 'monitor-wx-results');
+}
+
+function abbrevName(name) {
+  return name
+    .replace('This Afternoon', 'This Aft')
+    .replace('Monday', 'Mon').replace('Tuesday', 'Tue').replace('Wednesday', 'Wed')
+    .replace('Thursday', 'Thu').replace('Friday', 'Fri').replace('Saturday', 'Sat').replace('Sunday', 'Sun');
+}
+
+function buildRiskNarrative(location, dayPeriods, risks, activeAlerts = []) {
+  const full  = { HIGH: 'High', MDT: 'Moderate', ENH: 'Enhanced', SLGT: 'Slight', MRGL: 'Marginal' };
+  const lower = { HIGH: 'high', MDT: 'moderate', ENH: 'enhanced', SLGT: 'slight', MRGL: 'marginal' };
+  const days = dayPeriods.map((p, i) => ({
+    name: abbrevName(p.name),
+    risk: (risks[i] && full[risks[i]]) ? risks[i] : null,
+    riskFull:  full[risks[i]]  || null,
+    riskLower: lower[risks[i]] || null,
+  }));
+  const atRisk = days.filter(d => d.risk);
+  const join = a => a.length === 1 ? a[0] : a.length === 2 ? `${a[0]} and ${a[1]}` : `${a.slice(0,-1).join(', ')}, and ${a[a.length-1]}`;
+
+  const topAlert = activeAlerts.length > 0 ? activeAlerts[0] : null;
+  const alertStr = topAlert ? `${ALERT_STYLE[topAlert.properties.event].short} until ${formatTime(topAlert.properties.expires)}. ` : '';
+
+  if (atRisk.length === 0) {
+    return alertStr
+      ? `${alertStr}${location} clear the next 3 days.`
+      : `${location} looks clear all 3 days!`;
+  }
+
+  const firstRisky = atRisk[0];
+  const isToday = days[0] === firstRisky;
+
+  if (alertStr) {
+    if (atRisk.length === 3) {
+      const allSame = days.every(d => d.risk === days[0].risk);
+      if (allSame) return `${alertStr}${location} has a ${days[0].riskLower} risk of severe weather all 3 days.`;
+      return `${alertStr}${location}: ${days.map(d => `${d.name} — ${d.riskLower} risk`).join(', ')}.`;
+    }
+    if (atRisk.length === 1) {
+      return `${alertStr}${location}: ${firstRisky.name} has a ${firstRisky.riskLower} risk of severe weather.`;
+    }
+    return `${alertStr}${location}: ${join(atRisk.map(d => `${d.name} — ${d.riskLower} risk`))}.`;
+  }
+
+  if (!isToday) {
+    if (atRisk.length === 1) {
+      return `${location} currently clear. ${firstRisky.name} has a ${firstRisky.riskLower} risk of severe weather.`;
+    }
+    return `${location} currently clear. ${join(atRisk.map(d => `${d.name} has a ${d.riskLower} risk`))} of severe weather.`;
+  }
+
+  const clear = days.filter(d => !d.risk);
+  if (atRisk.length === 3) {
+    const allSame = days.every(d => d.risk === days[0].risk);
+    if (allSame) return `${location} has a ${days[0].riskLower} risk of severe weather all 3 days.`;
+    return `${location}: ${days.map(d => `${d.name} — ${d.riskLower} risk`).join(', ')}.`;
+  }
+  if (atRisk.length === 1) {
+    const clearStr = join(clear.map(d => d.name));
+    const isLast = days[days.length - 1] === firstRisky;
+    if (isLast) return `${location} looks clear ${clearStr}, but ${firstRisky.name} has a ${firstRisky.riskLower} risk of severe weather.`;
+    return `${location} has a ${firstRisky.riskLower} risk of severe weather today. ${clearStr} look${clear.length > 1 ? '' : 's'} clear.`;
+  }
+  const riskStr = join(atRisk.map(d => `${d.name} has a ${d.riskLower} risk`));
+  return `${location}: ${riskStr} of severe weather. ${join(clear.map(d => d.name))} looks clear.`;
+}
+
+function renderForecast(location, periods, risks, isRegion = false, resultsId = 'wx-results', activeAlerts = []) {
+  const results = document.getElementById(resultsId);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const riskForPeriod = p => {
+    const d = new Date(p.startTime);
+    d.setHours(0, 0, 0, 0);
+    const offset = Math.round((d - today) / 86400000);
+    return risks[offset] || null;
+  };
+
+  const dayPeriods = periods.filter(p => p.isDaytime).slice(0, 3);
+  const alignedRisks = dayPeriods.map(p => riskForPeriod(p));
+
+  // Weather line for display
+  const weatherParts = dayPeriods.map(p => {
+    const fc = p.shortForecast.replace(/^(Slight Chance|Chance) /, '').split(' ').slice(0, 2).join(' ');
+    return `${abbrevName(p.name)} ${p.temperature}° ${fc}`;
+  });
+  const weatherLine = weatherParts.join(' | ');
+
+  const copyMsg = buildRiskNarrative(location, dayPeriods, alignedRisks, activeAlerts);
+
+  const currentP = dayPeriods[0];
+  const currentCard = currentP ? `<div class="wx-card" style="border-color:rgba(37,244,238,0.3);">
+      <div class="wx-period-name" style="color:var(--accent2);">Current · ${currentP.name}</div>
+      <div class="wx-temp">${currentP.temperature}°${currentP.temperatureUnit}</div>
+      <div class="wx-short">${currentP.shortForecast}</div>
+      <div class="wx-wind">Wind: ${currentP.windSpeed}</div>
+      ${riskBadgeHtml(alignedRisks[0])}
+    </div>` : '';
+
+  const spcCards = [
+    { label: 'Convective Day 1', period: dayPeriods[0], risk: alignedRisks[0] },
+    { label: 'Convective Day 2', period: dayPeriods[1], risk: alignedRisks[1] },
+    { label: 'Convective Day 3', period: dayPeriods[2], risk: alignedRisks[2] },
+  ].map(({ label, period, risk }) => {
+    if (!period) return '';
+    const copyText = `${location} - ${label}: ${period.temperature}°${period.temperatureUnit} ${period.shortForecast}. Wind ${period.windSpeed}.`;
+    return `<div class="wx-card">
+      <div class="wx-period-name">${label}</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:2px;">${period.name}</div>
+      <div class="wx-temp">${period.temperature}°${period.temperatureUnit}</div>
+      <div class="wx-short">${period.shortForecast}</div>
+      <div class="wx-wind">Wind: ${period.windSpeed}</div>
+      ${riskBadgeHtml(risk)}
+      <button class="wx-copy-btn" style="margin-top:8px;" data-text="${copyText.replace(/"/g, '&quot;')}" onclick="copyWxBtn(this)">Copy</button>
+    </div>`;
+  }).join('');
+
+  const cards = currentCard + spcCards;
+
+  const len = copyMsg.length;
+
+  activeAlerts.sort((a, b) => {
+    const ai = ALERT_ORDER.indexOf(a.properties.event);
+    const bi = ALERT_ORDER.indexOf(b.properties.event);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  const alertsBannerHTML = activeAlerts.length ? `
+    <div style="margin-bottom:14px;display:flex;flex-direction:column;gap:8px;">
+      ${activeAlerts.map(alert => {
+        const p = alert.properties;
+        const s = ALERT_STYLE[p.event];
+        const copyText = buildAlertCopy(alert);
+        return `<div style="background:${s.bg};border:1px solid ${s.border};border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <span style="font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:${s.color};">${s.short}</span>
+            <div style="font-size:12px;color:rgba(255,255,255,0.8);margin-top:3px;">${p.areaDesc.replace(/;/g, ' ·')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;">Expires: ${formatTime(p.expires)}</div>
+          </div>
+          <button class="wx-copy-btn" style="flex-shrink:0;" data-text="${copyText.replace(/"/g, '&quot;')}" onclick="copyWxBtn(this)">Copy</button>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  results.innerHTML = `
+    ${alertsBannerHTML}
+    <div class="wx-location">${location}${isRegion ? '<span style="font-size:13px;font-family:\'DM Sans\',sans-serif;color:var(--muted);margin-left:10px;letter-spacing:0;text-transform:none;">approximate regional forecast</span>' : ''}</div>
+    <div class="wx-periods">${cards}</div>
+    <div class="wx-summary">
+      <div class="wx-summary-weather">${weatherLine}</div>
+      <div class="wx-summary-risk">${copyMsg}</div>
+      <div class="wx-summary-footer">
+        <span class="wx-summary-len" style="color:${len > 85 ? '#f4c542' : 'var(--muted)'};">${len} chars</span>
+        <button class="wx-summary-btn" data-text="${copyMsg.replace(/"/g, '&quot;')}" onclick="copyWxBtn(this)">Copy</button>
+      </div>
+    </div>`;
+}
+
+function copyWxBtn(btn) {
+  const text = btn.dataset.text;
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 2000);
+  });
+}
+
+// ─── CLOCK ────────────────────────────────────────────────────────────────────
+
+function updateClock() {
+  const now = new Date();
+  const date = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  document.getElementById('local-clock').textContent = `${date}  ·  ${time}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── MY WEATHER (Hopkinsville, KY) ────────────────────────────────────────────
+
+function nwsIconEmoji(iconUrl) {
+  const m = iconUrl.match(/icons\/land\/(?:day|night)\/([a-z_,0-9]+)/);
+  if (!m) return '🌡️';
+  const code = m[1].split(',')[0].split('/')[0];
+  const map = {
+    skc: '☀️', hot: '🌡️', cold: '🥶',
+    few: '🌤️', sct: '⛅', bkn: '🌥️', ovc: '☁️',
+    wind_skc: '🌬️', wind_few: '🌬️', wind_sct: '🌬️', wind_bkn: '🌬️', wind_ovc: '🌬️',
+    snow: '❄️', blizzard: '🌨️', sleet: '🌨️',
+    rain_snow: '🌨️', rain_sleet: '🌨️', snow_sleet: '🌨️', snow_fzra: '🌨️',
+    fzra: '🌧️', rain_fzra: '🌧️',
+    rain: '🌧️', rain_showers: '🌦️', rain_showers_hi: '🌦️',
+    tsra: '⛈️', tsra_sct: '⛈️', tsra_hi: '⛈️',
+    tornado: '🌪️', hurricane: '🌀', tropical_storm: '🌀',
+    fog: '🌫️', haze: '🌫️', smoke: '🌫️', dust: '🌫️',
+  };
+  // night variants — replace any moon-visible condition with moon emoji
+  if (iconUrl.includes('/night/')) {
+    if (['skc', 'few', 'sct', 'bkn'].includes(code)) return '🌙';
+  }
+  return map[code] || '🌡️';
+}
+
+function degToCompass(deg) {
+  return ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'][Math.round(deg / 22.5) % 16];
+}
+
+async function loadMyWeather() {
+  const el = document.getElementById('my-weather');
+  try {
+    const pts = await fetch('https://api.weather.gov/points/36.8656,-87.4886', { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }).then(r => r.json());
+    const stations = await fetch(pts.properties.observationStations + '?limit=1', { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }).then(r => r.json());
+    const sid = stations.features[0].properties.stationIdentifier;
+    const obs = await fetch(`https://api.weather.gov/stations/${sid}/observations/latest`, { headers: { 'User-Agent': 'RHY-TikTok-Live-Tool' } }).then(r => r.json());
+    const p = obs.properties;
+    const tempC = p.temperature?.value;
+    const tempF = tempC != null ? Math.round(tempC * 9 / 5 + 32) : null;
+    const sky = p.textDescription || '';
+    const windMph = p.windSpeed?.value != null ? Math.round(p.windSpeed.value * 2.237) : null;
+    const windDir = p.windDirection?.value != null ? degToCompass(p.windDirection.value) : '';
+    const parts = [];
+    if (tempF != null) parts.push(`${tempF}°F`);
+    if (sky) parts.push(sky);
+    if (windMph != null) parts.push(`Wind ${windDir} ${windMph} mph`);
+    el.textContent = parts.length ? `Hopkinsville, KY  ·  ${parts.join('  ·  ')}` : 'Hopkinsville, KY  ·  Loading...';
+    const iconEl = document.getElementById('my-weather-icon');
+    if (p.icon) {
+      iconEl.textContent = nwsIconEmoji(p.icon);
+      iconEl.style.display = 'inline';
+    } else {
+      iconEl.style.display = 'none';
+    }
+  } catch { el.textContent = 'Hopkinsville, KY  ·  Unavailable'; }
+}
+
+loadMyWeather();
+setInterval(loadMyWeather, 600000); // refresh every 10 min
+
+const savedYtLink = localStorage.getItem('yt-link');
+if (savedYtLink) document.getElementById('yt-link').value = savedYtLink;
+
+function getYtVideoId(url) {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([A-Za-z0-9_-]{11})/,
+    /youtube\.com\/embed\/([A-Za-z0-9_-]{11})/,
+  ];
+  for (const p of patterns) {
+    const m = url.match(p);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function updateYtThumbnail() {
+  const url = document.getElementById('yt-link').value.trim();
+  const container = document.getElementById('yt-thumbnail');
+  const videoId = getYtVideoId(url);
+  if (!videoId) { container.style.display = 'none'; container.innerHTML = ''; return; }
+
+  const maxRes = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  const hqRes  = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+
+  container.style.display = 'block';
+  container.innerHTML = `
+    <div style="position:relative;">
+      <img id="yt-thumb-img" src="${hqRes}" alt="Thumbnail"
+        style="width:100%;border-radius:7px;display:block;">
+      <button onclick="ytDownloadThumb('${videoId}')"
+        style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.75);color:#fff;
+               font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;cursor:pointer;
+               border:1px solid rgba(255,255,255,0.2);">
+        Download HD
+      </button>
+    </div>`;
+}
+
+async function ytDownloadThumb(videoId) {
+  const maxRes = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+  const hqRes  = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+  for (const src of [maxRes, hqRes]) {
+    try {
+      const res = await fetch(src);
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      // maxresdefault placeholder is ~1-2KB — skip it
+      if (src === maxRes && blob.size < 5000) continue;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `thumbnail_${videoId}.jpg`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      return;
+    } catch (e) { continue; }
+  }
+  // CORS fallback — open in new tab for manual save
+  window.open(hqRes, '_blank');
+}
+
+updateYtThumbnail();
+
+// ─── WIS ──────────────────────────────────────────────────────────────────────
+
+function wisColor(score) {
+  if (score >= 92) return { color: '#B71C1C', dim: '#7F0000', label: 'EXTREME' };
+  if (score >= 80) return { color: '#FF1744', dim: '#B71C1C', label: 'SEVERE' };
+  if (score >= 60) return { color: '#FF6D00', dim: '#E65100', label: 'SIGNIFICANT' };
+  if (score >= 40) return { color: '#651FFF', dim: '#4527A0', label: 'MODERATE' };
+  if (score >= 20) return { color: '#2979FF', dim: '#1A237E', label: 'MILD' };
+  return { color: '#40C4FF', dim: '#0277BD', label: 'CALM' };
+}
+
+async function loadWIS() {
+  const el = document.getElementById('wis-results');
+  try {
+    const res = await fetch('https://ryanhallyall.com/rhy/wis.json');
+    if (!res.ok) throw new Error('Could not reach WIS feed.');
+    const data = await res.json();
+    renderWIS(el, data);
+  } catch (e) {
+    el.innerHTML = `<div class="warnings-status">Error: ${e.message}</div>`;
+  }
+}
+
+function renderWIS(el, data) {
+  const wis        = data.wis || {};
+  const score      = parseFloat(wis.weather_intensity_score) || 0;
+  const s30ago     = parseFloat(wis.weather_intensity_score_30m_ago) || 0;
+  const s30fwd     = parseFloat(wis.weather_intensity_score_30m_from_now) || 0;
+  const streamMode = (wis.todays_stream_info?.mode || 'standby').toLowerCase();
+  const threshold  = parseFloat(wis.todays_stream_info?.weather_intensity_score_threshold) || 92;
+  const reasoning  = wis.forecast_reasoning || '';
+  const ts         = wis.timestamp ? new Date(wis.timestamp) : new Date();
+  const fchanges   = wis.forecast_changes || {};
+  const history    = (data.score_history || []).map(h => parseFloat(h.weather_intensity_score));
+  const outlook    = data.daily_outlook_scores ? Object.values(data.daily_outlook_scores) : [];
+
+  const info   = wisColor(score);
+  const isLive = streamMode !== 'standby';
+
+  // Gauge arc
+  const R = 72, C = 2 * Math.PI * R;
+  const arcFilled = (score / 100) * C;
+
+  // Trend
+  const trendDelta  = s30fwd - s30ago;
+  const trendSymbol = trendDelta > 3 ? '&#8593;' : trendDelta < -3 ? '&#8595;' : '&#8594;';
+  const trendCol    = trendDelta > 3 ? '#ff5252' : trendDelta < -3 ? '#69f0ae' : '#ffeb3b';
+
+  // Sparkline
+  const histPts = history.slice(-30);
+  let proj = score;
+  const projPts = [score];
+  for (let m = 1; m <= 30; m++) {
+    proj = Math.max(0, Math.min(100, proj + (parseFloat(fchanges[`minute_${m}`]) || 0)));
+    projPts.push(proj);
+  }
+  const allPts = [...histPts, ...projPts];
+  const sMin = Math.max(0, Math.min(...allPts) - 4);
+  const sMax = Math.min(100, Math.max(...allPts) + 4);
+  const sRange = sMax - sMin || 1;
+  const SW = 288, SH = 46;
+  const hW = SW * 0.6, pW = SW * 0.4;
+  const toY = v => (SH - ((v - sMin) / sRange) * SH).toFixed(1);
+  const hPath = histPts.map((v, i) =>
+    `${i === 0 ? 'M' : 'L'}${((i / (histPts.length - 1 || 1)) * hW).toFixed(1)},${toY(v)}`
+  ).join(' ');
+  const pPath = projPts.map((v, i) =>
+    `${i === 0 ? 'M' : 'L'}${(hW + (i / (projPts.length - 1 || 1)) * pW).toFixed(1)},${toY(v)}`
+  ).join(' ');
+
+  // Tick marks
+  const ticks = Array.from({ length: 48 }, (_, i) => {
+    const a = (i / 48) * 2 * Math.PI - Math.PI / 2;
+    const major = i % 4 === 0;
+    const r1 = major ? 78 : 82;
+    const x1 = (90 + r1 * Math.cos(a)).toFixed(2);
+    const y1 = (90 + r1 * Math.sin(a)).toFixed(2);
+    const x2 = (90 + 86 * Math.cos(a)).toFixed(2);
+    const y2 = (90 + 86 * Math.sin(a)).toFixed(2);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${major ? 'rgba(255,255,255,0.24)' : 'rgba(255,255,255,0.07)'}" stroke-width="${major ? 1.5 : 1}"/>`;
+  }).join('');
+
+  // SPC zone arcs
+  const zones = [
+    ['#40C4FF', 0, 0.20], ['#2979FF', 0.20, 0.40], ['#651FFF', 0.40, 0.60],
+    ['#FF6D00', 0.60, 0.80], ['#FF1744', 0.80, 0.92], ['#B71C1C', 0.92, 1.00],
+  ].map(([col, start, end]) => {
+    const len = (end - start) * C;
+    const off = C * 0.25 - start * C;
+    return `<circle cx="90" cy="90" r="${R}" fill="none" stroke="${col}" stroke-width="12" opacity="0.12" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 90 90)"/>`;
+  }).join('');
+
+  // 7-day outlook bars
+  let outlookHTML = '';
+  if (outlook.length > 0) {
+    const bars = outlook.slice(0, 7).map(day => {
+      const ds = parseFloat(day.dos_score) || 0;
+      const di = wisColor(ds);
+      const barH = Math.max(5, (ds / 100) * 56);
+      const dayLabel = (day.public?.day_name || 'D?').slice(0, 3).toUpperCase();
+      const liveRaw = day.public?.chance_ryan_goes_live_this_day || '';
+      const liveChance = /^\d+%$/.test(liveRaw) ? liveRaw : '';
+      return `
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;">
+          <div style="font-size:7.5px;color:${di.color};font-weight:700;">${Math.round(ds)}</div>
+          <div style="width:100%;height:${barH}px;background:linear-gradient(180deg,${di.color}ee 0%,${di.color}55 100%);border-radius:3px 3px 2px 2px;box-shadow:0 0 10px ${di.color}44;"></div>
+          <div style="font-size:6.5px;color:rgba(255,255,255,0.65);">${dayLabel}</div>
+          <div style="font-size:6.5px;color:${di.color};">${liveChance}</div>
+        </div>`;
+    }).join('');
+    outlookHTML = `
+      <div class="wis-section">
+        <div class="wis-section-label">7-DAY OUTLOOK</div>
+        <div style="display:flex;gap:5px;align-items:flex-end;height:80px;">${bars}</div>
+        <div style="margin-top:8px;font-size:7px;color:rgba(255,255,255,0.45);letter-spacing:1px;text-align:center;">DOS SCORE &nbsp;&middot;&nbsp; LIVE CHANCE</div>
+      </div>`;
+  }
+
+  const sparklineHTML = histPts.length > 1 ? `
+    <div class="wis-section">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <div class="wis-section-label" style="margin:0;">RECENT HISTORY</div>
+        <div class="wis-section-label" style="margin:0;">30m FORECAST &middot;&middot;&middot;</div>
+      </div>
+      <svg width="100%" height="${SH}" viewBox="0 0 ${SW} ${SH}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="wis-hfill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${info.color}" stop-opacity="0.38"/>
+            <stop offset="100%" stop-color="${info.color}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${hPath} L${hW.toFixed(1)},${SH} L0,${SH}Z" fill="url(#wis-hfill)"/>
+        <path d="${hPath}" fill="none" stroke="${info.color}" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="${hW}" y1="0" x2="${hW}" y2="${SH}" stroke="rgba(255,255,255,0.4)" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="${hW + 2}" y="9" fill="rgba(255,255,255,0.5)" font-size="7" font-family="-apple-system,sans-serif">NOW</text>
+        <path d="${pPath} L${SW},${SH} L${hW.toFixed(1)},${SH}Z" fill="rgba(255,255,255,0.06)"/>
+        <path d="${pPath}" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="5 3"/>
+      </svg>
+    </div>` : '';
+
+  const thresholdPct = Math.min(100, (score / threshold) * 100);
+  const thresholdHTML = `
+    <div class="wis-threshold-row">
+      <div class="wis-threshold-label">STREAM AT ${Math.round(threshold)}</div>
+      <div class="wis-threshold-track">
+        <div class="wis-threshold-fill" style="width:${thresholdPct}%;background:linear-gradient(to right,${info.dim}88,${info.color});box-shadow:0 0 6px ${info.color}60;"></div>
+        ${score < threshold ? '<div class="wis-threshold-tick"></div>' : ''}
+      </div>
+      ${score >= threshold
+        ? `<div style="font-size:7.5px;color:${info.color};font-weight:800;letter-spacing:1px;">LIVE!</div>`
+        : `<div style="font-size:7.5px;color:rgba(255,255,255,0.5);">${score.toFixed(0)}/${Math.round(threshold)}</div>`}
+    </div>`;
+
+
+  el.innerHTML = `
+    <div class="wis-wrap">
+      <div class="wis-card" style="border:1px solid ${info.color}28;box-shadow:0 20px 60px rgba(0,0,0,0.8),0 0 120px ${info.color}0e,inset 0 1px 0 rgba(255,255,255,0.06);">
+        <div style="position:absolute;pointer-events:none;top:-80px;left:50%;transform:translateX(-50%);width:240px;height:240px;background:radial-gradient(circle,${info.color}22 0%,transparent 65%);"></div>
+
+        <div class="wis-header">
+          <div>
+            <div class="wis-title-top" style="color:${info.color};">WEATHER</div>
+            <div class="wis-title-sub">INTENSITY SCORE</div>
+          </div>
+          <div class="wis-mode-badge" style="background:${isLive ? info.color + '20' : 'rgba(255,255,255,0.05)'};border:1px solid ${isLive ? info.color + '55' : 'rgba(255,255,255,0.08)'};color:${isLive ? info.color : 'rgba(255,255,255,0.6)'};">
+            <div class="wis-mode-dot" style="background:${isLive ? info.color : 'rgba(255,255,255,0.2)'};box-shadow:${isLive ? '0 0 8px ' + info.color : 'none'};${isLive ? 'animation:pulse 1.8s ease-in-out infinite;' : ''}"></div>
+            ${streamMode}
+          </div>
+        </div>
+
+        <div class="wis-gauge-wrap">
+          <svg width="180" height="180" viewBox="0 0 180 180">
+            <defs>
+              <linearGradient id="wis-arc" gradientUnits="userSpaceOnUse" x1="18" y1="90" x2="162" y2="90">
+                <stop offset="0%" stop-color="${info.dim}"/>
+                <stop offset="100%" stop-color="${info.color}"/>
+              </linearGradient>
+            </defs>
+            <circle cx="90" cy="90" r="87" fill="none" stroke="${info.color}0a" stroke-width="1.5"/>
+            ${ticks}
+            <circle cx="90" cy="90" r="${R}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="12"/>
+            ${zones}
+            <circle cx="90" cy="90" r="${R}" fill="none" stroke="url(#wis-arc)" stroke-width="12" stroke-linecap="round"
+              stroke-dasharray="${arcFilled.toFixed(2)} ${(C - arcFilled).toFixed(2)}"
+              stroke-dashoffset="${(C * 0.25).toFixed(2)}"
+              transform="rotate(-90 90 90)"
+              style="filter:drop-shadow(0 0 14px ${info.color}cc);"/>
+            <text x="90" y="84" text-anchor="middle" fill="white" font-size="40" font-weight="800"
+              style="font-family:-apple-system,'SF Pro Display',sans-serif;filter:drop-shadow(0 0 16px ${info.color}99);">${score.toFixed(1)}</text>
+            <text x="90" y="103" text-anchor="middle" fill="${info.color}" font-size="10" font-weight="800" letter-spacing="4">${info.label}</text>
+            <text x="90" y="118" text-anchor="middle" fill="rgba(255,255,255,0.45)" font-size="9" letter-spacing="1">out of 100</text>
+          </svg>
+        </div>
+
+        <div class="wis-trend-row">
+          <div style="text-align:center;">
+            <div class="wis-trend-val">${s30ago.toFixed(1)}</div>
+            <div class="wis-trend-label">30m AGO</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="wis-trend-arrow" style="color:${trendCol};filter:drop-shadow(0 0 10px ${trendCol}80);">${trendSymbol}</div>
+            <div class="wis-trend-arrow-label">TREND</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="wis-trend-val">${s30fwd.toFixed(1)}</div>
+            <div class="wis-trend-label">30m AHEAD</div>
+          </div>
+        </div>
+
+        ${sparklineHTML}
+        ${thresholdHTML}
+        ${outlookHTML}
+
+        <div class="wis-footer">
+          <div class="wis-footer-text">ryanhallyall.com &middot; WIS</div>
+          <div class="wis-footer-text">${ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+        </div>
+      </div>
+      <div class="wis-refresh-note">Auto-refreshes every 20 seconds</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// STORM CHASER LOG
+// ═══════════════════════════════════════════════════
+const SC_DEFAULT_CHASERS = [
+  "AaronOnAir","Adam Lucio","B Dean Berry","Ben Richmond","Brad Arnold",
+  "Brandon Copic","Brandon Montgomery","Brett Adair","Clarence Bennett",
+  "Corey Gerken","Erik Fox","Freddy McKinney","Grant Leighty","Greg Turner",
+  "Jaden Pappenheim","James Hilger","Jeff Robbins","Jennifer McMahan",
+  "John Pucillo","Jordan Hall","Logan Eschrich","Luke Hatton","Marc Wilson",
+  "Michael Craddock","Nacoma Hutchinson","Nick Busby","Nick Smego",
+  "Rob McBay","Sam Camp","Sam Dienst","Scott Peake","Taylor Woodall"
+];
+
+function scLoad(key, fallback) {
+  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
+  catch { return fallback; }
+}
+function scSave(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+
+// Always start with default chasers merged with any localStorage additions
+let scChasers = (function() {
+  const saved = scLoad('sc_chasers', null);
+  if (!saved || saved.length === 0) return [...SC_DEFAULT_CHASERS];
+  // Merge: keep all defaults + any user-added chasers
+  const merged = new Set([...SC_DEFAULT_CHASERS, ...saved]);
+  return [...merged].sort((a,b) => a.localeCompare(b));
+})();
+let scStreams = scLoad('sc_streams', {});
+let scActiveDate = scLoad('sc_activeDate', null);
+let scStreamStartTime = scLoad('sc_startTime', null);
+let scTimerInterval = null;
+
+function scTodayStr() {
+  const d = new Date();
+  return String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + '-' + d.getFullYear();
+}
+
+function scToggleStream() {
+  if (scActiveDate) {
+    if (scStreams[scActiveDate]) scStreams[scActiveDate].active = false;
+    scActiveDate = null;
+    scStreamStartTime = null;
+    if (scTimerInterval) { clearInterval(scTimerInterval); scTimerInterval = null; }
+  } else {
+    const date = scTodayStr();
+    if (!scStreams[date]) scStreams[date] = { chasers: [], active: true };
+    else scStreams[date].active = true;
+    scActiveDate = date;
+    scStreamStartTime = Date.now();
+  }
+  scSave('sc_streams', scStreams);
+  scSave('sc_activeDate', scActiveDate);
+  scSave('sc_startTime', scStreamStartTime);
+  scUpdateUI();
+}
+
+function scLogChaser(name) {
+  if (!scActiveDate) return;
+  const stream = scStreams[scActiveDate];
+  const exists = stream.chasers.find(c => c.name === name);
+  if (exists) {
+    stream.chasers = stream.chasers.filter(c => c.name !== name);
+  } else {
+    const now = new Date();
+    const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    stream.chasers.push({ name, time });
+  }
+  scSave('sc_streams', scStreams);
+  scUpdateUI();
+}
+
+function scRemoveFromLog(name) {
+  if (!scActiveDate) return;
+  scStreams[scActiveDate].chasers = scStreams[scActiveDate].chasers.filter(c => c.name !== name);
+  scSave('sc_streams', scStreams);
+  scUpdateUI();
+}
+
+function scOpenModal() {
+  document.getElementById('scAddModal').classList.add('open');
+  document.getElementById('scNewChaserName').value = '';
+  setTimeout(() => document.getElementById('scNewChaserName').focus(), 100);
+}
+
+function scCloseModal() {
+  document.getElementById('scAddModal').classList.remove('open');
+}
+
+function scAddNewChaser() {
+  const name = document.getElementById('scNewChaserName').value.trim();
+  if (!name) return;
+  if (!scChasers.includes(name)) {
+    scChasers.push(name);
+    scChasers.sort((a,b) => a.localeCompare(b));
+    scSave('sc_chasers', scChasers);
+  }
+  scCloseModal();
+  if (scActiveDate) scLogChaser(name);
+  else scUpdateUI();
+  scShowToast(name + ' added');
+}
+
+function scExportForSheet() {
+  if (!scActiveDate || !scStreams[scActiveDate] || scStreams[scActiveDate].chasers.length === 0) {
+    scShowToast('No chasers to export'); return;
+  }
+  const stream = scStreams[scActiveDate];
+  const tsv = stream.chasers.map(c => c.name).join('\n');
+  navigator.clipboard.writeText(tsv).then(() => {
+    scShowToast(stream.chasers.length + ' names copied — paste into column B');
+  });
+}
+
+function scExportAll() {
+  const dates = Object.keys(scStreams).sort();
+  if (dates.length === 0) { scShowToast('No data to export'); return; }
+  let csv = 'Stream Date,Chaser Name\n';
+  dates.forEach(date => {
+    const s = scStreams[date];
+    if (s.chasers.length > 0) {
+      csv += date + ',\n';
+      s.chasers.forEach(c => { csv += ',' + c.name + '\n'; });
+    }
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'chaser_log_export.csv'; a.click();
+  URL.revokeObjectURL(url);
+  scShowToast('CSV downloaded');
+}
+
+function scConfirmClear() {
+  if (confirm('Clear all stream history? This cannot be undone.')) {
+    scStreams = {};
+    scActiveDate = null;
+    scSave('sc_streams', scStreams);
+    scSave('sc_activeDate', scActiveDate);
+    scUpdateUI();
+    scShowToast('History cleared');
+  }
+}
+
+function scToggleHistory() {
+  const body = document.getElementById('scHistBody');
+  const toggle = document.getElementById('scHistToggle');
+  body.classList.toggle('open');
+  toggle.style.transform = body.classList.contains('open') ? 'rotate(180deg)' : '';
+}
+
+function scRenderHistory() {
+  const body = document.getElementById('scHistBody');
+  const dates = Object.keys(scStreams).filter(d => d !== scActiveDate).sort().reverse();
+  if (dates.length === 0) {
+    body.innerHTML = '<p style="color:var(--muted);font-size:13px;padding:10px 0;">No past streams yet.</p>';
+    return;
+  }
+  body.innerHTML = dates.map(date => {
+    const s = scStreams[date];
+    const names = s.chasers.map(c => c.name).join(', ') || '<em style="color:var(--muted)">No chasers logged</em>';
+    return '<div class="sc-history-date">' + date + '</div><div class="sc-history-names">' + names + '</div>';
+  }).join('');
+}
+
+function scFormatElapsed(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function scTickTimer() {
+  const timerEl = document.getElementById('scStreamTimer');
+  if (!timerEl || !scStreamStartTime) return;
+  timerEl.textContent = scFormatElapsed(Date.now() - scStreamStartTime);
+}
+
+function scUpdateUI() {
+  const btn = document.getElementById('scStartBtn');
+  const info = document.getElementById('scStreamInfo');
+  const dateEl = document.getElementById('scStreamDate');
+  if (scActiveDate) {
+    btn.textContent = 'END STREAM';
+    btn.classList.add('active-stream');
+    info.style.display = 'flex';
+    dateEl.textContent = 'Live \u2014 ' + scActiveDate;
+    // Start the timer
+    scTickTimer();
+    if (!scTimerInterval) {
+      scTimerInterval = setInterval(scTickTimer, 1000);
+    }
+  } else {
+    btn.textContent = 'START STREAM';
+    btn.classList.remove('active-stream');
+    info.style.display = 'none';
+    if (scTimerInterval) { clearInterval(scTimerInterval); scTimerInterval = null; }
+  }
+  scRenderChasers();
+  scRenderLog();
+  scRenderHistory();
+}
+
+function scRenderChasers() {
+  const grid = document.getElementById('scChaserGrid');
+  const search = document.getElementById('scChaserSearch').value.toLowerCase();
+  const countEl = document.getElementById('scChaserCount');
+  const loggedNames = scActiveDate && scStreams[scActiveDate]
+    ? scStreams[scActiveDate].chasers.map(c => c.name) : [];
+  const filtered = scChasers.filter(c => c.toLowerCase().includes(search)).sort((a,b) => a.localeCompare(b));
+  countEl.textContent = filtered.length + ' total';
+  const totalItems = filtered.length + 1;
+  const cols = 3;
+  const rows = Math.ceil(totalItems / cols);
+  grid.style.gridTemplateRows = 'repeat(' + rows + ', auto)';
+  grid.innerHTML = filtered.map(name => {
+    const isLogged = loggedNames.includes(name);
+    const disabled = !scActiveDate ? 'disabled' : '';
+    return '<button class="sc-chaser-btn' + (isLogged ? ' logged' : '') + '" ' + disabled + " onclick=\"scLogChaser('" + name.replace(/'/g, "\\'") + "')\">" + name + '</button>';
+  }).join('') + '<button class="sc-add-chaser-btn" onclick="scOpenModal()">+ New Chaser</button>';
+}
+
+function scRenderLog() {
+  const list = document.getElementById('scLogList');
+  const countEl = document.getElementById('scLogCount');
+  if (!scActiveDate || !scStreams[scActiveDate] || scStreams[scActiveDate].chasers.length === 0) {
+    list.innerHTML = '<li class="sc-empty-log">Start a stream and tap chasers to log them</li>';
+    countEl.textContent = '0 chasers';
+    return;
+  }
+  const chaserList = scStreams[scActiveDate].chasers;
+  countEl.textContent = chaserList.length + ' chaser' + (chaserList.length !== 1 ? 's' : '');
+  list.innerHTML = [...chaserList].reverse().map(c =>
+    '<li class="sc-log-item"><span class="name">' + c.name + '</span><span class="time">' + c.time + '</span><button class="remove" onclick="scRemoveFromLog(\'' + c.name.replace(/'/g, "\\'") + '\')">&times;</button></li>'
+  ).join('');
+}
+
+function scShowToast(msg) {
+  const t = document.getElementById('scToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ═══════════════════════════════════════════════
+// AUTO-INIT: restore last active tab (must be AFTER all variable declarations)
+{
+  let savedTab = 'warnings';
+  try { savedTab = localStorage.getItem('lcc-active-tab') || 'warnings'; } catch(e) {}
+  const tabBtns = document.querySelectorAll('.filter-btn');
+  const tabMap = {};
+  tabBtns.forEach(b => { const f = b.getAttribute('onclick').match(/setFilter\('(\w+)'/); if (f) tabMap[f[1]] = b; });
+  setFilter(savedTab, tabMap[savedTab] || tabBtns[0]);
+}
+</script>
+<style>
+  /* ═══════════════════════════════════════════════════ */
+</body>
+</html>
