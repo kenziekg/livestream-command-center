@@ -2917,15 +2917,28 @@ function scAddNewChaser() {
   scShowToast(name + ' added');
 }
 
-function scExportForSheet() {
+async function scExportForSheet() {
   if (!scActiveDate || !scStreams[scActiveDate] || scStreams[scActiveDate].chasers.length === 0) {
     scShowToast('No chasers to export'); return;
   }
   const stream = scStreams[scActiveDate];
-  const tsv = stream.chasers.map(c => c.name).join('\n');
-  navigator.clipboard.writeText(tsv).then(() => {
-    scShowToast(stream.chasers.length + ' names copied — paste into column B');
-  });
+  const names = stream.chasers.map(c => c.name);
+  const payload = { date: scActiveDate, chasers: names };
+  try {
+    const res = await fetch('https://script.google.com/macros/s/AKfycbwxL4pC-kdCL2OKm0fHxwkqzFqWNlf7p6dvdA5V9m1uuPqMW32PlDm9qI5kdxDcskPc/exec', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    scShowToast(names.length + ' chasers sent to sheet and doc updated!');
+  } catch (e) {
+    console.warn('[ExportForSheet] POST failed, falling back to clipboard:', e.message);
+    const tsv = names.map(n => scActiveDate + '\t' + n).join('\n');
+    navigator.clipboard.writeText(tsv).then(() => {
+      scShowToast('Export failed — check connection. ' + names.length + ' chasers copied to clipboard as backup.');
+    });
+  }
 }
 
 function scExportAll() {
