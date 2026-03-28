@@ -2921,6 +2921,9 @@ async function scExportForSheet() {
   if (!scActiveDate || !scStreams[scActiveDate] || scStreams[scActiveDate].chasers.length === 0) {
     scShowToast('No chasers to export'); return;
   }
+  const btn = document.querySelector('[onclick="scExportForSheet()"]');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
   const stream = scStreams[scActiveDate];
   const names = stream.chasers.map(c => c.name);
   const payload = { date: scActiveDate, chasers: names };
@@ -2931,9 +2934,14 @@ async function scExportForSheet() {
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
+    btn.textContent = '✓ Sent!';
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = 'EXPORT FOR SHEET'; }, 3000);
     scShowToast(names.length + ' chasers sent to sheet and doc updated!');
   } catch (e) {
     console.warn('[ExportForSheet] POST failed, falling back to clipboard:', e.message);
+    btn.textContent = 'EXPORT FOR SHEET';
+    btn.disabled = false;
     const tsv = names.map(n => scActiveDate + '\t' + n).join('\n');
     navigator.clipboard.writeText(tsv).then(() => {
       scShowToast('Export failed — check connection. ' + names.length + ' chasers copied to clipboard as backup.');
